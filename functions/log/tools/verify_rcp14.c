@@ -1,6 +1,12 @@
-/* Verification of the rounded-reciprocal model of SVML's log family (hwy/rcp14_thresholds.h) against the
- * CPU's vrcp14pd + vrndscalepd (AVX-512F; run under Intel SDE on other machines). Compiled as C++ (the
- * header is C++).
+/* Verification of the rounded-reciprocal model of SVML's log family (hwy/rcp14_thresholds.h) against
+ * Intel's published reference algorithm of vrcp14pd (rcp14_ref.h) and against the CPU's vrcp14pd +
+ * vrndscalepd (AVX-512F; run under Intel SDE on other machines). Compiled as C++ (the header is C++).
+ *
+ * Without AVX-512 (proof, given the reference): the reference depends only on the top 16 fraction bits of m
+ * (and on m = 1 exactly), so rounding it for all 2^16 prefixes (low bits 0 and all ones) gives k(m) for every
+ * m; it must equal the step function. Also the emulation equals the step function for every high word of m.
+ * With AVX-512: vrcp14pd equals the reference bit for bit for all 2^16 prefixes with 8 low-bit patterns each,
+ * and k from the CPU satisfies:
  *
  * k(m) = 32 * vrndscalepd(vrcp14pd(m), imm 0x58) for m in [1, 2). Checks, with W, G, Z from the command line:
  *   0. bisection (assuming monotonicity) finds exactly the 16 thresholds of the header;
@@ -12,7 +18,7 @@
  * have k equal to the step function of the thresholds, and that the Highway emulation (the same integer
  * operations in scalar C) also equals it at all those points. First (also without AVX-512): the emulation
  * equals the step function for every high word of m (it depends on nothing else), i.e. for every m in [1, 2).
- * usage: verify_rcp14 [W [G [Z]]]   defaults 20 32 13; the README quotes a run with 22 36 13.
+ * usage: verify_rcp14 [W [G [Z]]]   defaults 16 30 13 (seconds under SDE); the README quotes a run with 22 36 13.
  * Exit status: 0 = all equal, 1 = mismatch, 77 = vrcp14pd checks skipped (no AVX-512F). */
 #include <immintrin.h>
 #include <math.h>
@@ -22,6 +28,7 @@
 #include <string.h>
 
 #include "functions/log/hwy/rcp14_thresholds.h"
+#include "functions/log/tools/rcp14_ref.h"
 
 using namespace hwymath_log;
 
@@ -36,6 +43,9 @@ __attribute__((target("avx512f"))) static void cpu_k8(const uint64_t *mb, int *k
     _mm512_storeu_pd(r, _mm512_roundscale_round_pd(v, 0x58, _MM_FROUND_NO_EXC));
     for (int l = 0; l < 8; l++) k[l] = (int)(r[l] * 32);
 }
+__attribute__((target("avx512f"))) static void cpu_rcp8(const uint64_t *mb, uint64_t *out) {
+    _mm512_storeu_si512(out, _mm512_castpd_si512(_mm512_rcp14_pd(_mm512_loadu_pd((const double *)mb))));
+}
 static int cpu_k(uint64_t mb) { uint64_t a[8]; int k[8]; for (int l = 0; l < 8; l++) a[l] = mb; cpu_k8(a, k); return k[0]; }
 
 /* the step function of the header */
@@ -47,6 +57,9 @@ static int emul_k(double m) {
     const uint32_t h = (uint32_t)(mb >> 32), e = kRcpBins.v[(mb >> 47) & 31];
     return 16 + (int)(e & 15) + ((h | 15) < e);
 }
+
+/* k from Intel's reference algorithm, rounded like vrndscalepd imm 0x58 (nearest, ties to even) */
+static int ref_k(double m) { return (int)nearbyint(bd(rcp14_ref_bits(db(m))) * 32.0); }
 
 static long g_bad, g_n;
 static void check8(const uint64_t *a, const char *what) {
@@ -71,12 +84,41 @@ int main(int argc, char **argv) {
         }
     }
     printf("emulation for all %ld high words of m (low word 0 and all ones)\n", n5 / 2);
+    /* the reference, rounded, for every fraction prefix */
+    for (uint64_t p = 0; p < (1u << 16); p++) {
+        for (int lo = 0; lo < 2; lo++) {
+            const double m = bd(ONE | p << 36 | (lo ? (1ULL << 36) - 1 : 0));
+            if (ref_k(m) != model_k(m) && g_bad++ < 10) printf("REFERENCE MISMATCH m=%a: %d vs %d\n", m, ref_k(m), model_k(m));
+        }
+    }
+    printf("reference (rounded) vs the thresholds for all 2^16 fraction prefixes\n");
     if (!__builtin_cpu_supports("avx512f")) {
         printf("verify_rcp14: emulation: %ld mismatches; checks against vrcp14pd SKIPPED (this CPU has no AVX-512F)\n", g_bad);
         return g_bad ? 1 : 77;
     }
-    const int W = argc > 1 ? atoi(argv[1]) : 20, G = argc > 2 ? atoi(argv[2]) : 32, Z = argc > 3 ? atoi(argv[3]) : 13;
+    const int W = argc > 1 ? atoi(argv[1]) : 16, G = argc > 2 ? atoi(argv[2]) : 30, Z = argc > 3 ? atoi(argv[3]) : 13;
     uint64_t a[8];
+    /* the CPU's vrcp14pd vs the reference, bit for bit */
+    {
+        uint64_t s = 0x2545f4914f6cdd1dULL;
+        long nr = 0;
+        for (uint64_t p = 0; p < (1u << 16); p++) {
+            for (int l = 0; l < 8; l++) {
+                s ^= s << 13; s ^= s >> 7; s ^= s << 17;
+                const uint64_t low = l == 0 ? 0 : l == 1 ? (1ULL << 36) - 1 : s >> 28;
+                a[l] = ONE | p << 36 | low;
+            }
+            uint64_t out[8];
+            cpu_rcp8(a, out);
+            for (int l = 0; l < 8; l++) {
+                if (out[l] != rcp14_ref_bits(a[l]) && g_bad++ < 10)
+                    printf("VRCP14PD MISMATCH m=%a: cpu %016llx, reference %016llx\n", bd(a[l]), (unsigned long long)out[l],
+                           (unsigned long long)rcp14_ref_bits(a[l]));
+            }
+            nr += 8;
+        }
+        printf("vrcp14pd vs the reference: %ld mantissas (all 2^16 prefixes, 8 low-bit patterns each)\n", nr);
+    }
     /* 0. bisection */
     for (int j = 31; j >= 16; j--) {  /* smallest m with k(m) <= j */
         uint64_t lo = ONE, hi = TWO - 1;

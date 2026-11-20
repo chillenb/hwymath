@@ -15,7 +15,7 @@ entirely different algorithm), and the per-function make targets stay independen
 | `svml/` | bit-identical C/AVX-512 translation of the assembly, with its constants (`svml_log_d_ha_constants.inc`, generated from the assembly by `tools/gen_svml_constants.py log`) |
 | `hwy/` | Google Highway version (`hwy_log.cc`); **shared**: `log_hwy-inl.h` (emulation of the AVX-512 operations), `rcp14_thresholds.h` (the rounded-`vrcp14pd` model), `log_tables.h` |
 | `tests/` | tests and test inputs; **shared**: `log_family_test.h` (Highway test/benchmark driver), `log_family_xcheck.h`, `extras*` (Intel SVML, SLEEF, libmvec) |
-| `tools/` | **shared**: `gen_svml_constants.py FUNCTION [--cxx]`, `verify_rcp14.c` (the `vrcp14pd` model against the CPU or Intel SDE), `xcheck.sh FUNCTION` (QEMU) |
+| `tools/` | **shared**: `gen_svml_constants.py FUNCTION [--cxx]`, `rcp14_ref.h` (Intel's reference `vrcp14pd`, from the tan port), `verify_rcp14.c` (the `vrcp14pd` model against the reference and the CPU or Intel SDE), `xcheck.sh FUNCTION` (QEMU) |
 | `log_d.h` | declarations of the C translation |
 | `function.mk` | build rules and the `log-*` make targets |
 
@@ -76,32 +76,36 @@ The AVX-512-only operations, emulated exactly (`hwy/log_hwy-inl.h`):
 
 ### `vrcp14pd`: why exact emulation is possible
 
-`vrcp14pd` returns an approximation of 1/m with relative error < 2^-14; its low bits are implementation-
-defined (Intel publishes a reference implementation; it is a table-based approximation, not the correctly
-rounded value: about 25 % of results equal the reciprocal rounded to 16 bits, errors up to 5.6 units of
-2^-17). SVML rounds it at once to 5 fractional bits (`vrndscalepd` imm 0x58: round to nearest even, scale
-2^-5), so only the 16 places where the rounded value changes matter. Measured with Intel SDE 10.13
-(`-spr`), which implements Intel's reference behaviour:
+`vrcp14pd` returns an approximation of 1/m with relative error < 2^-14; the SDM leaves its bits to the
+implementation, but Intel publishes reference C code (`recip14.c`, RCP14D: a 64-segment piecewise-linear
+formula on the top 16 fraction bits, truncated to 17 bits; not the correctly rounded value — about 25 % of
+results equal 1/m rounded to 16 bits, errors up to 5.6 units of 2^-17). `tools/rcp14_ref.h` is an integer
+rewrite of it (copied from the tan port, branch `port/trig`). SVML rounds the result at once to 5
+fractional bits (`vrndscalepd` imm 0x58: nearest, ties to even, scale 2^-5), so only the 16 places where the
+rounded value changes matter:
 
 - k(m) = 32·rcp is a non-increasing step function of m with exactly 16 steps, at the mantissas
-  `kRcpThreshold[]` of `hwy/rcp14_thresholds.h`. They are all multiples of 2^-16, and lie up to ~2 units of 2^-16 away from the exact boundaries 64/(2k+1), on either side — so computing
-  RN(32/m) with a division would **not** be exact; the measured thresholds are needed.
-- `vrcp14pd` itself depends on more than the top 16 mantissa bits (rarely even on bits beyond the 21st), but the
-  rounded value does not: `tools/verify_rcp14.c` (`make log-rcp14-check RUN="$SDE -spr --"`, or on AVX-512
-  hardware) finds the thresholds again by bisection and compares k(m) from the CPU with the step function at
-  every double within 2^22 ulps of each threshold (134 M values), at both ends of every interval of 2^16
-  doubles within 2^-13 of each threshold (268 M intervals; outside, |error| < 2^-14 cannot move the rounding),
-  at both ends of all 2^24 intervals of 2^28 doubles covering [1, 2), and at 16 M random mantissas: 0
-  mismatches (run with `22 36 13`, 2.5 min under SDE; the default arguments take 25 s). The remaining
-  assumption is that k does not oscillate inside an interval of 2^16 consecutive doubles whose ends agree.
+  `kRcpThreshold[]` of `hwy/rcp14_thresholds.h`. They are multiples of 2^-16 (the reference depends only on
+  the top 16 fraction bits, and on m = 1 exactly) and lie up to ~2 units of 2^-16 away from the exact
+  boundaries 64/(2k+1), on either side — so RN(32/m) with a division would **not** be exact.
+- Proof, given the reference: `tools/verify_rcp14.c` rounds the reference for all 2^16 fraction prefixes
+  (which covers every m) and compares with the step function; it also checks the emulation (below) for all
+  2^20 high words of m, i.e. for every m. Both run on any machine (`make log-test`).
+- The reference against the CPU (`make log-avx512-test` / `log-rcp14-check`, natively on AVX-512 hardware,
+  e.g. in CI, or under Intel SDE): `vrcp14pd` equals the reference bit for bit for all 2^16 prefixes with 8
+  low-bit patterns each, and k(m) from the CPU matches the step function at the thresholds found again by
+  bisection, at every double near them, at both ends of all 2^24 intervals covering [1, 2) and at 16 M
+  random mantissas. Under SDE 10.13 `-spr`: 0 mismatches, also in a longer run (`verify_rcp14 22 36 13`:
+  134 M doubles around the thresholds and 268 M interval ends within 2^-13 of them, 2.5 min); 16 M random
+  full mantissas also matched the reference bit for bit.
 - The emulation: each bin of m with the same top 5 mantissa bits (width 1/32) contains at most one threshold
   (they are ≥ 0.0333 apart), so `kRcpBins[b]` = high word of the bin's threshold | (k above it − 16), and
   k − 16 = (entry & 15) + ((hi32(m) | 15) < entry) — a 32-entry `uint32` lookup (one `vpermt2d` on
   AVX-512) and a few integer operations; rcp's bits are 0x3fe0000000000000 + ((k − 16) << 48) (k = 32
-  gives 1.0) and the table index is (k − 16) & 15. It depends only on the high word of m, so
-  `verify_rcp14` checks it against the step function for all 2^20 high words, i.e. for every m.
+  gives 1.0) and the table index is (k − 16) & 15. This is cheaper than evaluating the full reference
+  formula and rounding it.
 
-So the Highway version reproduces Intel's hardware/SDE `vrcp14pd`. If another AVX-512 implementation
+So the Highway version reproduces Intel's reference (and SDE's) `vrcp14pd`. If another AVX-512 implementation
 (e.g. AMD Zen 4/5) rounds differently near these 16 thresholds, Intel's own SVML binary would give different
 results there on that CPU, while this version stays identical on every machine (the CI hash cross-check).
 An earlier version computed k from a quadratic estimate of 32/m and a 16-entry threshold lookup (also exact,
@@ -122,7 +126,7 @@ Other notes:
 | `test_log8` | Intel's `__svml_log8_ha`: all 8 lanes bit-exact | 2,029,320 inputs, 0 mismatches (Intel SDE `-spr`); needs AVX-512F/DQ |
 | `hwy_test` | every Highway target: error < 1 ulp, special values vs `logl`, agreement between targets, special lanes bit-identical to the C callout; with AVX-512: every target bit-identical to the C translation | all checks pass (AVX2 natively; AVX2, AVX3, AVX3_DL, AVX3_SPR under SDE `-spr`, also AVX10_2 under `-dmr`) |
 | `make log-insns` | arithmetic instruction mix (mnemonic + rounding mode) of the compiled vector path vs the assembly | identical |
-| `make log-rcp14-check` | the `vrcp14pd` model and its emulation vs the CPU (above) | 0 mismatches |
+| `verify_rcp14` (in `log-test`, `log-avx512-test`, `log-rcp14-check`) | the `vrcp14pd` model and its emulation vs Intel's reference algorithm (any CPU) and vs `vrcp14pd` (AVX-512) | 0 mismatches |
 | `make log-xcheck` | Highway on AArch64 NEON/SVE/SVE2 (QEMU, 128–2048-bit SVE) vs x86-64 | bit-identical |
 
 Inputs (`tests/inputs.h`): special values (signed zeros, infinities, NaNs with payloads, denormals, DBL_MAX),

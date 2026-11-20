@@ -27,7 +27,7 @@ $(LOG)/hwy/hwy_log_constants.inc: $(LOGF_GEN) $(LOG_ASM)
 ifeq ($(ARCH),x86_64)
 LOG_OBJS   := $(LOG_B)/svml_log_d_ha.o $(LOG_B)/svml_asm.o
 LOG_EXTRAS := $(LOG_B)/extras_x86.o
-LOG_TESTS  := $(LOG_B)/test_rare $(LOG_B)/test_log8
+LOG_TESTS  := $(LOG_B)/test_rare $(LOG_B)/test_log8 $(LOG_B)/verify_rcp14
 else
 LOG_OBJS   := $(LOG_B)/svml_log_d_ha.o
 LOG_EXTRAS := $(LOG_B)/extras_arm.o $(LOG_B)/extras_arm_sve.o
@@ -59,8 +59,8 @@ $(LOG_B)/extras_arm_sve.o: $(LOG)/tests/extras_arm_sve.c | $(LOG_B)
 LOG_TEST_DEPS := $(LOG)/tests/inputs.h common/include/hwymath/test_util.h $(LOG_OBJS)
 $(LOG_B)/test_%: $(LOG)/tests/test_%.c $(LOG_TEST_DEPS)
 	$(CC) $(CFLAGS) $(INC) $< $(LOG_OBJS) -lm -o $@
-# exhaustive-style check of the rounded vrcp14pd model (rcp14_thresholds.h) against the CPU (or Intel SDE)
-$(LOG_B)/verify_rcp14: $(LOG)/tools/verify_rcp14.c $(LOG)/hwy/rcp14_thresholds.h | $(LOG_B)
+# the rounded vrcp14pd model (rcp14_thresholds.h) vs Intel's reference algorithm (rcp14_ref.h) and the CPU
+$(LOG_B)/verify_rcp14: $(LOG)/tools/verify_rcp14.c $(LOG)/tools/rcp14_ref.h $(LOG)/hwy/rcp14_thresholds.h | $(LOG_B)
 	$(CXX) $(CXXFLAGS) $(INC) -x c++ $< -lm -o $@
 
 # --- Highway version ---
@@ -92,8 +92,9 @@ ifeq ($(ARCH),x86_64)
 log-insns: $(LOG_B)/svml_log_d_ha.o $(LOG_B)/svml_asm.o
 	common/tools/compare_insns.sh $(LOG_B)/svml_log_d_ha.o svml_log8_ha $(LOG_B)/svml_asm.o __svml_log8_ha
 # AVX-512: bit-exactness of the translation vs Intel's assembly; Highway targets vs the translation
-log-avx512-test: $(LOG_B)/test_log8 $(LOG_B)/hwy_test
+log-avx512-test: $(LOG_B)/test_log8 $(LOG_B)/hwy_test $(LOG_B)/verify_rcp14
 	$(RUN) ./$(LOG_B)/test_log8 2000000 || [ $$? -eq 77 ]
+	$(RUN) ./$(LOG_B)/verify_rcp14 || [ $$? -eq 77 ]
 	$(RUN) ./$(LOG_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 # the rounded-vrcp14pd model shared by the log family, against the CPU's vrcp14pd (skipped without AVX-512)
 log-rcp14-check: $(LOG_B)/verify_rcp14
