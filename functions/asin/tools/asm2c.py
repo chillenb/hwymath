@@ -6,7 +6,8 @@ Each instruction becomes one C statement on a small machine model (shown next to
 the C function computes exactly what the assembly computes, operation by operation:
   - xmm registers hold doubles (only the low lane is ever used by these routines); scalar SSE2
     arithmetic is IEEE binary64 with round-to-nearest, i.e. plain C double arithmetic (compile without
-    FMA contraction);
+    FMA contraction): am_add etc., which are the C operators on x86 and elsewhere also produce x86's NaN
+    results (the first NaN operand quieted, or the negative default NaN for invalid operations);
   - general-purpose registers are uint64_t with x86 sub-register semantics (32-bit writes zero-extend,
     8/16-bit writes merge);
   - memory is real memory: a local stack array for the red zone below %rsp, the caller's pointers in
@@ -171,9 +172,8 @@ for line in body:
         c = f'{x(b)} = bitsd(dbits({x(b)}) ^ ld64({addr(a)}));'
     elif mn in ('addsd', 'subsd', 'mulsd', 'divsd'):
         a, b = ops
-        o = {'add': '+', 'sub': '-', 'mul': '*', 'div': '/'}[mn[:3]]
         src_ = x(a) if is_xmm(a) else f'ldd({addr(a)})'
-        c = f'{x(b)} = {x(b)} {o} {src_};'
+        c = f'{x(b)} = am_{mn[:3]}({x(b)}, {src_});'
     elif mn in ('comisd', 'ucomisd'):
         a, b = ops
         src_ = x(a) if is_xmm(a) else f'ldd({addr(a)})'

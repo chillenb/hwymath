@@ -87,10 +87,11 @@ correctly rounded 1/b (the rounding error of r1 carries over), and R = RN(r2·a)
 differs. The Highway version therefore uses **trunc16(RN(1/b))** (division, mantissa truncated to 16
 bits: same format, relative error < 2^-15.9 instead of 2^-14) on every FMA target. Consequences:
 
-- the results are bit-identical on every FMA target and machine (x86-64 AVX2/AVX-512, and by
-  construction NEON/SVE/RVV: only IEEE operations), and equal to `svml_atan28_ha_portable`;
+- the results are bit-identical on every FMA target and machine (x86-64 AVX2/AVX-512, AArch64
+  NEON/SVE/SVE2 checked under QEMU, and by construction RVV: only IEEE operations), and equal to
+  `svml_atan28_ha_portable`;
 - they differ from Intel's in **6 of 2,003,640** test inputs (0.0003 %); the error statistics are
-  unchanged (max 0.775 ulp on the 2M test set, as Intel's);
+  unchanged (max 0.786 ulp on the 2M test set, as Intel's);
 - `hwy_atan2_native_array` uses `vrcp14pd` itself on AVX-512 targets (`ApproximateReciprocal`): it is
   bit-identical to Intel's code on the same CPU (verified under SDE), which also proves that all other
   operations are emulated exactly. On other targets it is the same as `hwy_atan2_array`.
@@ -105,6 +106,7 @@ Targets without FMA (SSE2/SSSE3/SSE4) use `std::atan2`.
 | `test_atan28` | Intel's `__svml_atan28_ha`, all 8 lanes bit-exact | 2,003,640 input pairs, 0 mismatches (Intel SDE `-spr`) |
 | `hwy_test` | every Highway target: error bound (max ≤ 0.9 ulp, none > 1 ulp), special inputs (zero arguments vs glibc's exact results, other special lanes vs the callout), identical results on all FMA targets; with AVX-512: bit-identity with `svml_atan28_ha_portable` (all FMA targets) and of the native variant with `svml_atan28_ha` | all checks pass (AVX3_SPR, AVX3_DL, AVX3, AVX2 under SDE; AVX2 natively) |
 | `make atan2-insns` | arithmetic instruction mix of the compiled vector path vs the assembly | identical |
+| `make atan2-xcheck` (`pixi run -e cross`) | Highway NEON, SVE and SVE2 under QEMU (SVE at 128, 256, 512, 1024 and 2048 bits, i.e. 2 to 32 lanes) vs x86-64 AVX2: inputs and results bit for bit (`functions/asin/tools/xcheck_invtrig.sh`) | identical on all 11 AArch64 configurations (200,000 random inputs plus the edge cases) |
 
 Inputs (`tests/inputs.h`, pairs (y, x)): all 28 × 28 combinations of special values (±0, ±inf, NaNs with
 payloads, ±denormals, ±DBL_MIN, the exponent limits 2^-1020 and 2^993 with neighbours, ±DBL_MAX, ...);

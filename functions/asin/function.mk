@@ -1,6 +1,6 @@
 # asin, double precision: bit-identical C/AVX-512 translation of svml_z0_asin_d_ha.s and a Google Highway
 # version. Included by the top-level Makefile; paths are relative to the repository root.
-# Targets: asin-all asin-test asin-hwy asin-hashes, and on x86-64 also asin-insns asin-avx512-test.
+# Targets: asin-all asin-test asin-hwy asin-hashes asin-xcheck, and on x86-64 also asin-insns asin-avx512-test.
 # functions/asin/tools/asm2c.py and functions/asin/svml/asm_model.h are also used by acos, atan, atan2.
 
 ASIN     := functions/asin
@@ -65,6 +65,10 @@ ALL_TARGETS    += asin-all
 TEST_TARGETS   += asin-test
 HWY_TARGETS    += asin-hwy
 HASHES_TARGETS += asin-hashes
+# AArch64 NEON/SVE/SVE2 (QEMU, SVE at 128-2048 bits) vs x86-64, bit for bit: pixi run -e cross make asin-xcheck
+asin-xcheck: $(ASIN_GEN)
+	functions/asin/tools/xcheck_invtrig.sh asin $(PREFIX) $(PREFIX)
+XCHECK_TARGETS += asin-xcheck
 
 ifeq ($(ARCH),x86_64)
 asin-insns: $(ASIN_B)/svml_asin_d_ha.o $(ASIN_B)/svml_asm.o
@@ -77,4 +81,4 @@ INSNS_TARGETS  += asin-insns
 AVX512_TARGETS += asin-avx512-test
 endif
 
-.PHONY: asin-all asin-test asin-hwy asin-hashes asin-insns asin-avx512-test
+.PHONY: asin-all asin-test asin-hwy asin-hashes asin-xcheck asin-insns asin-avx512-test

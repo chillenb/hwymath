@@ -52,7 +52,8 @@ xor/or selection of the π constants becomes nested `IfThenElse`), NaN lanes set
 |x| > 1 through the C callout, and `vrsqrt14pd` replaced by **trunc16(RN(1/RN(√Y)))** on every FMA
 target (see asin for why `vrsqrt14pd` cannot be reproduced and why the result depends on it):
 
-- the results are bit-identical on every FMA target and machine, and equal to `svml_acos8_ha_portable`;
+- the results are bit-identical on every FMA target and machine (AArch64 NEON/SVE/SVE2 checked under
+  QEMU), and equal to `svml_acos8_ha_portable`;
 - they differ from Intel's in 483 of the 2,004,655 test inputs (0.024 %, |x| ≥ 0.5 only); max error 0.817
   ulp as Intel's, not correctly rounded 6.77 % vs 6.76 %;
 - `hwy_acos_native_array` uses `vrsqrt14pd` on AVX-512 targets: bit-identical to Intel's code on the same
@@ -68,6 +69,7 @@ Targets without FMA (SSE2/SSSE3/SSE4) use `std::acos`.
 | `test_acos8` | Intel's `__svml_acos8_ha`, all 8 lanes bit-exact | 2,004,656 inputs, 0 mismatches (Intel SDE `-spr`); skipped (77) without AVX-512 |
 | `hwy_test` | every Highway target: error bound (max ≤ 0.9 ulp, none > 1 ulp), special inputs (NaN, ±inf, \|x\| > 1, acos(1) = +0, acos(−1) = RN(π)), identical results on all FMA targets; with AVX-512: bit-identity of every FMA target with `svml_acos8_ha_portable` and of the native variant with `svml_acos8_ha` | all checks pass (AVX3_SPR, AVX3_DL, AVX3, AVX2 under SDE; AVX2 natively) |
 | `make acos-insns` | arithmetic instruction mix of the compiled vector path vs the assembly | identical |
+| `make acos-xcheck` (`pixi run -e cross`) | Highway NEON, SVE and SVE2 under QEMU (SVE at 128, 256, 512, 1024 and 2048 bits, i.e. 2 to 32 lanes) vs x86-64 AVX2: inputs and results bit for bit (`functions/asin/tools/xcheck_invtrig.sh`) | identical on all 11 AArch64 configurations (200,000 random inputs plus the edge cases) |
 
 Inputs (`tests/inputs.h`, the same set as asin's): special values, ±50 ulps around every threshold of the
 vector code and the callout, arguments approaching ±1, random values (uniform in [−1, 1] and

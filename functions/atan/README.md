@@ -61,7 +61,8 @@ always the same double for different Rcp, and R = RN(Diff·Rcp₂) and the final
 Highway version uses **trunc16(RN(1/Y))** (one division, mantissa truncated to 16 bits: the same format,
 relative error < 2⁻¹⁶ + 2⁻⁵³) on every FMA target:
 
-- the results are bit-identical on every FMA target and machine, and equal to `svml_atan8_ha_portable`;
+- the results are bit-identical on every FMA target and machine (AArch64 NEON/SVE/SVE2 checked under
+  QEMU), and equal to `svml_atan8_ha_portable`;
 - they differ from Intel's in 19 of the 2,004,201 test inputs (0.0009 %); max error 0.565 ulp as Intel's,
   not correctly rounded 0.0320 % vs 0.0324 %;
 - `hwy_atan_native_array` uses `vrcp14pd` on AVX-512 targets: bit-identical to Intel's code on the same
@@ -79,6 +80,7 @@ AVX-512 algorithm's 0.57 ulp.
 | `test_atan8` | Intel's `__svml_atan8_ha`, all 8 lanes bit-exact | 2,004,208 inputs, 0 mismatches (Intel SDE `-spr`); skipped (77) without AVX-512 |
 | `hwy_test` | every Highway target: error bound (max ≤ 0.6 ulp, none > 1 ulp), special inputs (NaN, ±inf, ±0, denormals), identical results on all FMA targets; with AVX-512: bit-identity of every FMA target with `svml_atan8_ha_portable` and of the native variant with `svml_atan8_ha` | all checks pass (AVX3_SPR, AVX3_DL, AVX3, AVX2 under SDE; AVX2 natively) |
 | `make atan-insns` | arithmetic instruction mix of the compiled vector path vs the assembly | identical |
+| `make atan-xcheck` (`pixi run -e cross`) | Highway NEON, SVE and SVE2 under QEMU (SVE at 128, 256, 512, 1024 and 2048 bits, i.e. 2 to 32 lanes) vs x86-64 AVX2: inputs and results bit for bit (`functions/asin/tools/xcheck_invtrig.sh`) | identical on all 11 AArch64 configurations (200,000 random inputs plus the edge cases) |
 
 Inputs (`tests/inputs.h`): special values (±0, ±inf, NaNs with payloads, denormals, ±DBL_MAX, 2¹²⁸, ...),
 ±50 ulps around every threshold of the vector code (7.875, 3.875…4.125, 2¹²⁸) and of the scalar routine

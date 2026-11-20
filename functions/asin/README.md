@@ -9,6 +9,7 @@ Source studied: [`svml_z0_asin_d_ha.s`](https://github.com/numpy/SVML/blob/9a43e
 | `svml/svml_asin_d_ha_constants.inc` | vector-path constants, generated from the assembly by `tools/gen_svml_constants.py` |
 | `svml/svml_dasin_ha_cout_rare.inc` | the scalar callout, translated mechanically by `tools/asm2c.py` |
 | `svml/asm_model.h` | the machine model the mechanical translations run on (also used by acos, atan, atan2) |
+| `tools/` | `gen_svml_constants.py`, `asm2c.py` (also used by acos, atan, atan2), `xcheck_invtrig.sh`/`.cc` (AArch64 cross-check of all four functions) |
 | `hwy/` | portable Google Highway version |
 | `tests/` | tests, benchmark, comparison implementations (Intel SVML, SLEEF), test inputs |
 | `asin_d.h` | declarations of the C kernels |
@@ -48,16 +49,18 @@ order and every instruction's rounding mode, so its results are bit-identical to
 
 The four inverse-trigonometric callouts are about 260 to 730 scalar SSE2 instructions each (asin's: about
 440), so they are not rewritten by hand: `asm2c.py` turns every instruction into one C statement on a
-small machine model (`svml/asm_model.h`, each statement annotated with the instruction): xmm
-registers are doubles, general-purpose registers are `uint64_t` with x86 sub-register semantics, memory is
-real memory (a stack array for the red zone, the caller's pointers, the data tables as `uint64_t` arrays
-with the assembly's bits), and the condition flags are the operands of the last flag-setting instruction,
-evaluated by the jumps (`comisd` with signaling C comparisons, `ucomisd` with `isgreater` etc., so the same
-FP exceptions are raised). The tables are writable and zeroing reads a volatile zero, so that the compiler
-cannot constant-fold operations whose exceptions must be raised at run time. The result is portable C
-(little-endian assumed) that GCC/Clang compile into ordinary register code; `test_rare` checks results,
-return codes and FP flags against the assembly bit for bit. The algorithm summary above is from reading
-the assembly; the generated code itself is not meant to be read.
+small machine model (`svml/asm_model.h`, each statement annotated with the instruction): xmm registers are
+doubles, general-purpose registers are `uint64_t` with x86 sub-register semantics, memory is real memory
+(a stack array for the red zone, the caller's pointers, the data tables as `uint64_t` arrays with the
+assembly's bits), and the condition flags are the operands of the last flag-setting instruction, evaluated
+by the jumps (`comisd` with signaling C comparisons, `ucomisd` with `isgreater` etc., so the same FP
+exceptions are raised). The tables are writable and zeroing reads a volatile zero, so that the compiler
+cannot constant-fold operations whose exceptions must be raised at run time. Elsewhere than on x86, the
+arithmetic helpers also produce x86's NaN results (first NaN operand, negative default NaN), so the
+callouts give the same bits on AArch64. The result is portable C (little-endian assumed) that GCC/Clang
+compile into ordinary register code; `test_rare` checks results, return codes and FP flags against the
+assembly bit for bit. The algorithm summary above is from reading the assembly; the generated code itself
+is not meant to be read.
 
 Differences of the vector translation from the assembly that do not affect results: the bitwise
 operations use the integer forms (`vpandq`/`vpxorq`, AVX-512F) instead of `vandpd`/`vxorpd` (AVX-512DQ);
@@ -89,7 +92,8 @@ result does not depend on r: the sqrt branch is masked out.) The Highway version
 format as Intel's, relative error < 2⁻¹⁵·⁹ instead of 2⁻¹⁴) on every FMA target. Consequences:
 
 - the results are bit-identical on every FMA target and machine (only IEEE operations: x86-64 AVX2 and
-  AVX-512, and by construction NEON/SVE/RVV), and equal to `svml_asin8_ha_portable`;
+  AVX-512, AArch64 NEON/SVE/SVE2 checked under QEMU, RVV by construction), and equal to
+  `svml_asin8_ha_portable`;
 - they differ from Intel's in 620 of the 2,004,655 test inputs (0.031 %, all with |x| ≥ 0.5); max error
   and not-correctly-rounded rate stay those of Intel's code (0.829 vs 0.829 ulp, 6.10 vs 6.08 % on these
   inputs);
@@ -109,6 +113,7 @@ the Core i5-9500 (2.3 ns/value).
 | `test_asin8` | Intel's `__svml_asin8_ha`, all 8 lanes bit-exact | 2,004,656 inputs, 0 mismatches (Intel SDE `-spr`); skipped (77) without AVX-512 |
 | `hwy_test` | every Highway target: error bound (max ≤ 0.9 ulp, none > 1 ulp), special inputs (NaN, ±inf, \|x\| > 1, ±0), identical results on all FMA targets; with AVX-512: bit-identity of every FMA target with `svml_asin8_ha_portable` and of the native variant with `svml_asin8_ha` | all checks pass (AVX3_SPR, AVX3_DL, AVX3, AVX2 under SDE; AVX2 natively) |
 | `make asin-insns` | arithmetic instruction mix of the compiled vector path vs the assembly | identical |
+| `make asin-xcheck` (`pixi run -e cross`) | Highway NEON, SVE and SVE2 under QEMU (SVE at 128, 256, 512, 1024 and 2048 bits, i.e. 2 to 32 lanes) vs x86-64 AVX2: inputs and results bit for bit (`functions/asin/tools/xcheck_invtrig.sh`) | identical on all 11 AArch64 configurations (200,000 random inputs plus the edge cases) |
 
 Inputs (`tests/inputs.h`): special values (±0, ±inf, NaNs with payloads, denormals, ±1, ±DBL_MAX, ...),
 ±50 ulps around every threshold of the vector code and the callout (0.5, 1, 2⁻⁵³, 2⁻¹⁰²², ...),

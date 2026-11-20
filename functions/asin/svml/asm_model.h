@@ -36,6 +36,27 @@ static inline void st32(uint64_t a, uint32_t v) { memcpy((void *)(uintptr_t)a, &
 static inline void st64(uint64_t a, uint64_t v) { memcpy((void *)(uintptr_t)a, &v, 8); }
 static inline void std_(uint64_t a, double v) { memcpy((void *)(uintptr_t)a, &v, 8); }
 
+/* Scalar SSE2 arithmetic (addsd, subsd, mulsd, divsd: IEEE binary64, round to nearest). Elsewhere the
+ * NaN results are made those of x86 SSE: the first NaN operand (the destination register), quieted,
+ * else the second, else (invalid operation) the default NaN, which is negative on x86 (positive on
+ * AArch64). This keeps the callouts' results bit-identical across architectures. */
+#if defined(__x86_64__) || defined(__i386__)
+static inline double am_add(double a, double b) { return a + b; }
+static inline double am_sub(double a, double b) { return a - b; }
+static inline double am_mul(double a, double b) { return a * b; }
+static inline double am_div(double a, double b) { return a / b; }
+#else
+static inline double am_nan(double a, double b) {
+    if (isnan(a)) return am_bitsd(am_dbits(a) | 0x0008000000000000ULL);
+    if (isnan(b)) return am_bitsd(am_dbits(b) | 0x0008000000000000ULL);
+    return am_bitsd(0xfff8000000000000ULL);
+}
+static inline double am_add(double a, double b) { const double r = a + b; return isnan(r) ? am_nan(a, b) : r; }
+static inline double am_sub(double a, double b) { const double r = a - b; return isnan(r) ? am_nan(a, b) : r; }
+static inline double am_mul(double a, double b) { const double r = a * b; return isnan(r) ? am_nan(a, b) : r; }
+static inline double am_div(double a, double b) { const double r = a / b; return isnan(r) ? am_nan(a, b) : r; }
+#endif
+
 /* kind of the last flag-setting instruction */
 enum { FK_BAD = 0, FK_INT = 1, FK_COMI = 2, FK_UCOMI = 3 };
 

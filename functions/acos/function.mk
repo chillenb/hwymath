@@ -1,6 +1,6 @@
 # acos, double precision: bit-identical C/AVX-512 translation of svml_z0_acos_d_ha.s and a Google Highway
 # version. Included by the top-level Makefile; paths are relative to the repository root.
-# Targets: acos-all acos-test acos-hwy acos-hashes, and on x86-64 also acos-insns acos-avx512-test.
+# Targets: acos-all acos-test acos-hwy acos-hashes acos-xcheck, and on x86-64 also acos-insns acos-avx512-test.
 # The scalar callout is translated by functions/asin/tools/asm2c.py (machine model functions/asin/svml/asm_model.h).
 
 ACOS     := functions/acos
@@ -65,6 +65,10 @@ ALL_TARGETS    += acos-all
 TEST_TARGETS   += acos-test
 HWY_TARGETS    += acos-hwy
 HASHES_TARGETS += acos-hashes
+# AArch64 NEON/SVE/SVE2 (QEMU, SVE at 128-2048 bits) vs x86-64, bit for bit: pixi run -e cross make acos-xcheck
+acos-xcheck: $(ACOS_GEN)
+	functions/asin/tools/xcheck_invtrig.sh acos $(PREFIX) $(PREFIX)
+XCHECK_TARGETS += acos-xcheck
 
 ifeq ($(ARCH),x86_64)
 acos-insns: $(ACOS_B)/svml_acos_d_ha.o $(ACOS_B)/svml_asm.o
@@ -77,4 +81,4 @@ INSNS_TARGETS  += acos-insns
 AVX512_TARGETS += acos-avx512-test
 endif
 
-.PHONY: acos-all acos-test acos-hwy acos-hashes acos-insns acos-avx512-test
+.PHONY: acos-all acos-test acos-hwy acos-hashes acos-xcheck acos-insns acos-avx512-test

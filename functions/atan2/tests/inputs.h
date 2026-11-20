@@ -53,14 +53,19 @@ make_inputs(double *ys, double *xs, size_t n_random)
         ys[k] = rng_uniform(-2.0, 2.0); xs[k] = rng_uniform(-2.0, 2.0); k++;
     }
     for (size_t i = 0; i < n_random / 4; i++) {  /* y = x * ratio, ratio log-uniform in [2^-8, 2^8] */
+        /* (one rng() call per statement: the evaluation order of function arguments is unspecified) */
         const double x = rng_uniform(-100.0, 100.0);
-        const double q = ldexp(1.0 + (double)(rng() >> 12) * 0x1p-52, (int)(rng() % 16) - 8);
+        const double m = 1.0 + (double)(rng() >> 12) * 0x1p-52;
+        const double q = ldexp(m, (int)(rng() % 16) - 8);
         ys[k] = (rng() & 1) ? -x * q : x * q; xs[k] = x; k++;
     }
     for (size_t i = 0; i < n_random / 4; i++) {  /* log-uniform magnitudes in [2^-1080, 2^1024), random signs */
         const uint64_t r = rng();
-        ys[k] = ldexp(1.0 + (double)(r >> 12) * 0x1p-52, (int)(rng() % 2104) - 1080) * ((r & 1) ? -1 : 1);
-        xs[k] = ldexp(1.0 + (double)(rng() >> 12) * 0x1p-52, (int)(rng() % 2104) - 1080) * ((r & 2) ? -1 : 1);
+        const int ey = (int)(rng() % 2104) - 1080;
+        const double mx = 1.0 + (double)(rng() >> 12) * 0x1p-52;
+        const int ex = (int)(rng() % 2104) - 1080;
+        ys[k] = ldexp(1.0 + (double)(r >> 12) * 0x1p-52, ey) * ((r & 1) ? -1 : 1);
+        xs[k] = ldexp(mx, ex) * ((r & 2) ? -1 : 1);
         k++;
     }
     for (size_t i = 0; i < n_random / 4; i++) {  /* arbitrary bit patterns */

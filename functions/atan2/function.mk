@@ -1,6 +1,6 @@
 # atan2, double precision: bit-identical C/AVX-512 translation of svml_z0_atan2_d_ha.s and a Google Highway
 # version. Included by the top-level Makefile; paths are relative to the repository root.
-# Targets: atan2-all atan2-test atan2-hwy atan2-hashes, and on x86-64 also atan2-insns atan2-avx512-test.
+# Targets: atan2-all atan2-test atan2-hwy atan2-hashes atan2-xcheck, and on x86-64 also atan2-insns atan2-avx512-test.
 # The scalar callout is translated by functions/asin/tools/asm2c.py (machine model: functions/asin/svml/asm_model.h).
 
 ATAN2     := functions/atan2
@@ -65,6 +65,10 @@ ALL_TARGETS    += atan2-all
 TEST_TARGETS   += atan2-test
 HWY_TARGETS    += atan2-hwy
 HASHES_TARGETS += atan2-hashes
+# AArch64 NEON/SVE/SVE2 (QEMU, SVE at 128-2048 bits) vs x86-64, bit for bit: pixi run -e cross make atan2-xcheck
+atan2-xcheck: $(ATAN2_GEN)
+	functions/asin/tools/xcheck_invtrig.sh atan2 $(PREFIX) $(PREFIX)
+XCHECK_TARGETS += atan2-xcheck
 
 ifeq ($(ARCH),x86_64)
 atan2-insns: $(ATAN2_B)/svml_atan2_d_ha.o $(ATAN2_B)/svml_asm.o
@@ -77,4 +81,4 @@ INSNS_TARGETS  += atan2-insns
 AVX512_TARGETS += atan2-avx512-test
 endif
 
-.PHONY: atan2-all atan2-test atan2-hwy atan2-hashes atan2-insns atan2-avx512-test
+.PHONY: atan2-all atan2-test atan2-hwy atan2-hashes atan2-xcheck atan2-insns atan2-avx512-test

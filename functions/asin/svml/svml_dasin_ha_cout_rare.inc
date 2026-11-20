@@ -179,152 +179,152 @@ svml_dasin_ha_cout_rare(const double *a0, double *a1)
     if (cc_be(fk, fw, fa, fb, fx, fy)) goto L_LBL_2_6;                                               /* jbe .LBL_2_6 */
     x13 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4104));                                        /* movsd 4104+_vmldASinHATab(%rip), %xmm13 */
     x5 = x12;                                                                                        /* movaps %xmm12, %xmm5 */
-    x13 = x13 * x12;                                                                                 /* mulsd %xmm12, %xmm13 */
+    x13 = am_mul(x13, x12);                                                                          /* mulsd %xmm12, %xmm13 */
     x7 = x12;                                                                                        /* movaps %xmm12, %xmm7 */
     std_((rsp + -48), x13);                                                                          /* movsd %xmm13, -48(%rsp) */
     x14 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm14 */
     x1 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4104));                                         /* movsd 4104+_vmldASinHATab(%rip), %xmm1 */
-    x14 = x14 - ldd((rsp + -32));                                                                    /* subsd -32(%rsp), %xmm14 */
+    x14 = am_sub(x14, ldd((rsp + -32)));                                                             /* subsd -32(%rsp), %xmm14 */
     std_((rsp + -56), x14);                                                                          /* movsd %xmm14, -56(%rsp) */
     x8 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm8 */
     x15 = ldd((rsp + -56));                                                                          /* movsd -56(%rsp), %xmm15 */
-    x8 = x8 - x15;                                                                                   /* subsd %xmm15, %xmm8 */
+    x8 = am_sub(x8, x15);                                                                            /* subsd %xmm15, %xmm8 */
     std_((rsp + -48), x8);                                                                           /* movsd %xmm8, -48(%rsp) */
     x6 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm6 */
     x8 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4296));                                         /* movsd 4296+_vmldASinHATab(%rip), %xmm8 */
-    x5 = x5 - x6;                                                                                    /* subsd %xmm6, %xmm5 */
+    x5 = am_sub(x5, x6);                                                                             /* subsd %xmm6, %xmm5 */
     std_((rsp + -56), x5);                                                                           /* movsd %xmm5, -56(%rsp) */
     x5 = x12;                                                                                        /* movaps %xmm12, %xmm5 */
     x9 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm9 */
     x13 = x9;                                                                                        /* movaps %xmm9, %xmm13 */
-    x7 = x7 + x9;                                                                                    /* addsd %xmm9, %xmm7 */
-    x13 = x13 * x9;                                                                                  /* mulsd %xmm9, %xmm13 */
+    x7 = am_add(x7, x9);                                                                             /* addsd %xmm9, %xmm7 */
+    x13 = am_mul(x13, x9);                                                                           /* mulsd %xmm9, %xmm13 */
     x11 = ldd((rsp + -56));                                                                          /* movsd -56(%rsp), %xmm11 */
     x10 = x13;                                                                                       /* movaps %xmm13, %xmm10 */
-    x7 = x7 * x11;                                                                                   /* mulsd %xmm11, %xmm7 */
-    x1 = x1 * x13;                                                                                   /* mulsd %xmm13, %xmm1 */
-    x10 = x10 + x7;                                                                                  /* addsd %xmm7, %xmm10 */
-    x8 = x8 * x10;                                                                                   /* mulsd %xmm10, %xmm8 */
+    x7 = am_mul(x7, x11);                                                                            /* mulsd %xmm11, %xmm7 */
+    x1 = am_mul(x1, x13);                                                                            /* mulsd %xmm13, %xmm1 */
+    x10 = am_add(x10, x7);                                                                           /* addsd %xmm7, %xmm10 */
+    x8 = am_mul(x8, x10);                                                                            /* mulsd %xmm10, %xmm8 */
     std_((rsp + -48), x1);                                                                           /* movsd %xmm1, -48(%rsp) */
     x2 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm2 */
     x1 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4104));                                         /* movsd 4104+_vmldASinHATab(%rip), %xmm1 */
-    x2 = x2 - x13;                                                                                   /* subsd %xmm13, %xmm2 */
-    x8 = x8 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4288));                                    /* addsd 4288+_vmldASinHATab(%rip), %xmm8 */
-    x8 = x8 * x10;                                                                                   /* mulsd %xmm10, %xmm8 */
+    x2 = am_sub(x2, x13);                                                                            /* subsd %xmm13, %xmm2 */
+    x8 = am_add(x8, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4288)));                             /* addsd 4288+_vmldASinHATab(%rip), %xmm8 */
+    x8 = am_mul(x8, x10);                                                                            /* mulsd %xmm10, %xmm8 */
     std_((rsp + -56), x2);                                                                           /* movsd %xmm2, -56(%rsp) */
     x3 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm3 */
     x0 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm0 */
-    x8 = x8 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4280));                                    /* addsd 4280+_vmldASinHATab(%rip), %xmm8 */
-    x3 = x3 - x0;                                                                                    /* subsd %xmm0, %xmm3 */
-    x8 = x8 * x10;                                                                                   /* mulsd %xmm10, %xmm8 */
+    x8 = am_add(x8, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4280)));                             /* addsd 4280+_vmldASinHATab(%rip), %xmm8 */
+    x3 = am_sub(x3, x0);                                                                             /* subsd %xmm0, %xmm3 */
+    x8 = am_mul(x8, x10);                                                                            /* mulsd %xmm10, %xmm8 */
     std_((rsp + -48), x3);                                                                           /* movsd %xmm3, -48(%rsp) */
     x4 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm4 */
-    x8 = x8 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4272));                                    /* addsd 4272+_vmldASinHATab(%rip), %xmm8 */
-    x13 = x13 - x4;                                                                                  /* subsd %xmm4, %xmm13 */
-    x8 = x8 * x10;                                                                                   /* mulsd %xmm10, %xmm8 */
+    x8 = am_add(x8, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4272)));                             /* addsd 4272+_vmldASinHATab(%rip), %xmm8 */
+    x13 = am_sub(x13, x4);                                                                           /* subsd %xmm4, %xmm13 */
+    x8 = am_mul(x8, x10);                                                                            /* mulsd %xmm10, %xmm8 */
     std_((rsp + -56), x13);                                                                          /* movsd %xmm13, -56(%rsp) */
     x6 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm6 */
-    x9 = x9 * x6;                                                                                    /* mulsd %xmm6, %xmm9 */
-    x8 = x8 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4264));                                    /* addsd 4264+_vmldASinHATab(%rip), %xmm8 */
-    x11 = x11 * x6;                                                                                  /* mulsd %xmm6, %xmm11 */
-    x8 = x8 * x10;                                                                                   /* mulsd %xmm10, %xmm8 */
-    x1 = x1 * x9;                                                                                    /* mulsd %xmm9, %xmm1 */
-    x8 = x8 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4256));                                    /* addsd 4256+_vmldASinHATab(%rip), %xmm8 */
-    x8 = x8 * x10;                                                                                   /* mulsd %xmm10, %xmm8 */
+    x9 = am_mul(x9, x6);                                                                             /* mulsd %xmm6, %xmm9 */
+    x8 = am_add(x8, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4264)));                             /* addsd 4264+_vmldASinHATab(%rip), %xmm8 */
+    x11 = am_mul(x11, x6);                                                                           /* mulsd %xmm6, %xmm11 */
+    x8 = am_mul(x8, x10);                                                                            /* mulsd %xmm10, %xmm8 */
+    x1 = am_mul(x1, x9);                                                                             /* mulsd %xmm9, %xmm1 */
+    x8 = am_add(x8, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4256)));                             /* addsd 4256+_vmldASinHATab(%rip), %xmm8 */
+    x8 = am_mul(x8, x10);                                                                            /* mulsd %xmm10, %xmm8 */
     x3 = x9;                                                                                         /* movaps %xmm9, %xmm3 */
     x14 = ldd((rsp + -56));                                                                          /* movsd -56(%rsp), %xmm14 */
     x4 = x6;                                                                                         /* movaps %xmm6, %xmm4 */
     std_((rsp + -48), x1);                                                                           /* movsd %xmm1, -48(%rsp) */
-    x7 = x7 + x14;                                                                                   /* addsd %xmm14, %xmm7 */
-    x8 = x8 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4248));                                    /* addsd 4248+_vmldASinHATab(%rip), %xmm8 */
-    x5 = x5 * x7;                                                                                    /* mulsd %xmm7, %xmm5 */
-    x8 = x8 * x10;                                                                                   /* mulsd %xmm10, %xmm8 */
-    x11 = x11 + x5;                                                                                  /* addsd %xmm5, %xmm11 */
-    x8 = x8 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4240));                                    /* addsd 4240+_vmldASinHATab(%rip), %xmm8 */
+    x7 = am_add(x7, x14);                                                                            /* addsd %xmm14, %xmm7 */
+    x8 = am_add(x8, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4248)));                             /* addsd 4248+_vmldASinHATab(%rip), %xmm8 */
+    x5 = am_mul(x5, x7);                                                                             /* mulsd %xmm7, %xmm5 */
+    x8 = am_mul(x8, x10);                                                                            /* mulsd %xmm10, %xmm8 */
+    x11 = am_add(x11, x5);                                                                           /* addsd %xmm5, %xmm11 */
+    x8 = am_add(x8, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4240)));                             /* addsd 4240+_vmldASinHATab(%rip), %xmm8 */
     x2 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm2 */
-    x8 = x8 * x10;                                                                                   /* mulsd %xmm10, %xmm8 */
-    x2 = x2 - x9;                                                                                    /* subsd %xmm9, %xmm2 */
-    x9 = x9 + x11;                                                                                   /* addsd %xmm11, %xmm9 */
-    x8 = x8 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4232));                                    /* addsd 4232+_vmldASinHATab(%rip), %xmm8 */
-    x7 = x7 * x9;                                                                                    /* mulsd %xmm9, %xmm7 */
-    x8 = x8 * x10;                                                                                   /* mulsd %xmm10, %xmm8 */
+    x8 = am_mul(x8, x10);                                                                            /* mulsd %xmm10, %xmm8 */
+    x2 = am_sub(x2, x9);                                                                             /* subsd %xmm9, %xmm2 */
+    x9 = am_add(x9, x11);                                                                            /* addsd %xmm11, %xmm9 */
+    x8 = am_add(x8, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4232)));                             /* addsd 4232+_vmldASinHATab(%rip), %xmm8 */
+    x7 = am_mul(x7, x9);                                                                             /* mulsd %xmm9, %xmm7 */
+    x8 = am_mul(x8, x10);                                                                            /* mulsd %xmm10, %xmm8 */
     std_((rsp + -56), x2);                                                                           /* movsd %xmm2, -56(%rsp) */
     x0 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm0 */
     x15 = ldd((rsp + -56));                                                                          /* movsd -56(%rsp), %xmm15 */
-    x0 = x0 - x15;                                                                                   /* subsd %xmm15, %xmm0 */
-    x8 = x8 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4224));                                    /* addsd 4224+_vmldASinHATab(%rip), %xmm8 */
+    x0 = am_sub(x0, x15);                                                                            /* subsd %xmm15, %xmm0 */
+    x8 = am_add(x8, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4224)));                             /* addsd 4224+_vmldASinHATab(%rip), %xmm8 */
     std_((rsp + -48), x0);                                                                           /* movsd %xmm0, -48(%rsp) */
     x5 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm5 */
-    x8 = x8 * x10;                                                                                   /* mulsd %xmm10, %xmm8 */
-    x3 = x3 - x5;                                                                                    /* subsd %xmm5, %xmm3 */
+    x8 = am_mul(x8, x10);                                                                            /* mulsd %xmm10, %xmm8 */
+    x3 = am_sub(x3, x5);                                                                             /* subsd %xmm5, %xmm3 */
     std_((rsp + -56), x3);                                                                           /* movsd %xmm3, -56(%rsp) */
     x3 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm3 */
     x5 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm5 */
     x13 = x5;                                                                                        /* movaps %xmm5, %xmm13 */
-    x8 = x8 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4216));                                    /* addsd 4216+_vmldASinHATab(%rip), %xmm8 */
-    x4 = x4 * x3;                                                                                    /* mulsd %xmm3, %xmm4 */
-    x13 = x13 + x11;                                                                                 /* addsd %xmm11, %xmm13 */
-    x8 = x8 * x10;                                                                                   /* mulsd %xmm10, %xmm8 */
-    x6 = x6 * x13;                                                                                   /* mulsd %xmm13, %xmm6 */
-    x8 = x8 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4208));                                    /* addsd 4208+_vmldASinHATab(%rip), %xmm8 */
-    x6 = x6 + x7;                                                                                    /* addsd %xmm7, %xmm6 */
-    x8 = x8 * x10;                                                                                   /* mulsd %xmm10, %xmm8 */
+    x8 = am_add(x8, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4216)));                             /* addsd 4216+_vmldASinHATab(%rip), %xmm8 */
+    x4 = am_mul(x4, x3);                                                                             /* mulsd %xmm3, %xmm4 */
+    x13 = am_add(x13, x11);                                                                          /* addsd %xmm11, %xmm13 */
+    x8 = am_mul(x8, x10);                                                                            /* mulsd %xmm10, %xmm8 */
+    x6 = am_mul(x6, x13);                                                                            /* mulsd %xmm13, %xmm6 */
+    x8 = am_add(x8, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4208)));                             /* addsd 4208+_vmldASinHATab(%rip), %xmm8 */
+    x6 = am_add(x6, x7);                                                                             /* addsd %xmm7, %xmm6 */
+    x8 = am_mul(x8, x10);                                                                            /* mulsd %xmm10, %xmm8 */
     x7 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4104));                                         /* movsd 4104+_vmldASinHATab(%rip), %xmm7 */
     x13 = x4;                                                                                        /* movaps %xmm4, %xmm13 */
-    x7 = x7 * x4;                                                                                    /* mulsd %xmm4, %xmm7 */
-    x8 = x8 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4200));                                    /* addsd 4200+_vmldASinHATab(%rip), %xmm8 */
+    x7 = am_mul(x7, x4);                                                                             /* mulsd %xmm4, %xmm7 */
+    x8 = am_add(x8, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4200)));                             /* addsd 4200+_vmldASinHATab(%rip), %xmm8 */
     std_((rsp + -48), x7);                                                                           /* movsd %xmm7, -48(%rsp) */
     x1 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm1 */
     x10 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4184));                                        /* movsd 4184+_vmldASinHATab(%rip), %xmm10 */
-    x1 = x1 - x4;                                                                                    /* subsd %xmm4, %xmm1 */
-    x10 = x10 * x9;                                                                                  /* mulsd %xmm9, %xmm10 */
-    x4 = x4 + x6;                                                                                    /* addsd %xmm6, %xmm4 */
+    x1 = am_sub(x1, x4);                                                                             /* subsd %xmm4, %xmm1 */
+    x10 = am_mul(x10, x9);                                                                           /* mulsd %xmm9, %xmm10 */
+    x4 = am_add(x4, x6);                                                                             /* addsd %xmm6, %xmm4 */
     std_((rsp + -56), x1);                                                                           /* movsd %xmm1, -56(%rsp) */
     x9 = x12;                                                                                        /* movaps %xmm12, %xmm9 */
     x0 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm0 */
     x2 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm2 */
     x1 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4176));                                         /* movsd 4176+_vmldASinHATab(%rip), %xmm1 */
-    x0 = x0 - x2;                                                                                    /* subsd %xmm2, %xmm0 */
-    x3 = x3 * x1;                                                                                    /* mulsd %xmm1, %xmm3 */
-    x11 = x11 * x1;                                                                                  /* mulsd %xmm1, %xmm11 */
-    x8 = x8 * x4;                                                                                    /* mulsd %xmm4, %xmm8 */
-    x9 = x9 + x3;                                                                                    /* addsd %xmm3, %xmm9 */
-    x5 = x5 * x1;                                                                                    /* mulsd %xmm1, %xmm5 */
-    x10 = x10 + x11;                                                                                 /* addsd %xmm11, %xmm10 */
+    x0 = am_sub(x0, x2);                                                                             /* subsd %xmm2, %xmm0 */
+    x3 = am_mul(x3, x1);                                                                             /* mulsd %xmm1, %xmm3 */
+    x11 = am_mul(x11, x1);                                                                           /* mulsd %xmm1, %xmm11 */
+    x8 = am_mul(x8, x4);                                                                             /* mulsd %xmm4, %xmm8 */
+    x9 = am_add(x9, x3);                                                                             /* addsd %xmm3, %xmm9 */
+    x5 = am_mul(x5, x1);                                                                             /* mulsd %xmm1, %xmm5 */
+    x10 = am_add(x10, x11);                                                                          /* addsd %xmm11, %xmm10 */
     std_((rsp + -48), x0);                                                                           /* movsd %xmm0, -48(%rsp) */
-    x8 = x8 + x10;                                                                                   /* addsd %xmm10, %xmm8 */
+    x8 = am_add(x8, x10);                                                                            /* addsd %xmm10, %xmm8 */
     x7 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm7 */
-    x8 = x8 + x5;                                                                                    /* addsd %xmm5, %xmm8 */
-    x13 = x13 - x7;                                                                                  /* subsd %xmm7, %xmm13 */
+    x8 = am_add(x8, x5);                                                                             /* addsd %xmm5, %xmm8 */
+    x13 = am_sub(x13, x7);                                                                           /* subsd %xmm7, %xmm13 */
     std_((rsp + -56), x13);                                                                          /* movsd %xmm13, -56(%rsp) */
     x0 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm0 */
     x2 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm2 */
     std_((rsp + -48), x9);                                                                           /* movsd %xmm9, -48(%rsp) */
-    x6 = x6 + x2;                                                                                    /* addsd %xmm2, %xmm6 */
+    x6 = am_add(x6, x2);                                                                             /* addsd %xmm2, %xmm6 */
     x11 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm11 */
     x4 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4192));                                         /* movsd 4192+_vmldASinHATab(%rip), %xmm4 */
-    x12 = x12 - x11;                                                                                 /* subsd %xmm11, %xmm12 */
-    x0 = x0 * x4;                                                                                    /* mulsd %xmm4, %xmm0 */
-    x6 = x6 * x4;                                                                                    /* mulsd %xmm4, %xmm6 */
-    x3 = x3 + x12;                                                                                   /* addsd %xmm12, %xmm3 */
+    x12 = am_sub(x12, x11);                                                                          /* subsd %xmm11, %xmm12 */
+    x0 = am_mul(x0, x4);                                                                             /* mulsd %xmm4, %xmm0 */
+    x6 = am_mul(x6, x4);                                                                             /* mulsd %xmm4, %xmm6 */
+    x3 = am_add(x3, x12);                                                                            /* addsd %xmm12, %xmm3 */
     std_((rsp + -56), x3);                                                                           /* movsd %xmm3, -56(%rsp) */
     x3 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm3 */
     x12 = x3;                                                                                        /* movaps %xmm3, %xmm12 */
     x7 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm7 */
-    x12 = x12 + x0;                                                                                  /* addsd %xmm0, %xmm12 */
-    x8 = x8 + x7;                                                                                    /* addsd %xmm7, %xmm8 */
+    x12 = am_add(x12, x0);                                                                           /* addsd %xmm0, %xmm12 */
+    x8 = am_add(x8, x7);                                                                             /* addsd %xmm7, %xmm8 */
     std_((rsp + -48), x12);                                                                          /* movsd %xmm12, -48(%rsp) */
     x12 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm12 */
-    x3 = x3 - x12;                                                                                   /* subsd %xmm12, %xmm3 */
-    x0 = x0 + x3;                                                                                    /* addsd %xmm3, %xmm0 */
+    x3 = am_sub(x3, x12);                                                                            /* subsd %xmm12, %xmm3 */
+    x0 = am_add(x0, x3);                                                                             /* addsd %xmm3, %xmm0 */
     std_((rsp + -56), x0);                                                                           /* movsd %xmm0, -56(%rsp) */
     x9 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm9 */
     x0 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm0 */
     rdi = (rdi & ~(uint64_t)0xff) | (uint8_t)(ld8((rdi + 7)));                                       /* movb 7(%rdi), %dil */
-    x8 = x8 + x0;                                                                                    /* addsd %xmm0, %xmm8 */
+    x8 = am_add(x8, x0);                                                                             /* addsd %xmm0, %xmm8 */
     { uint8_t t_ = (uint8_t)(((uint8_t)rdi) & ((uint8_t)(-128))); rdi = (rdi & ~(uint64_t)0xff) | (uint8_t)(t_); fk = FK_INT; fw = 8; fa = (uint64_t)(t_); fb = 0; } /* andb $-128, %dil */
-    x9 = x9 + x8;                                                                                    /* addsd %xmm8, %xmm9 */
-    x6 = x6 + x9;                                                                                    /* addsd %xmm9, %xmm6 */
+    x9 = am_add(x9, x8);                                                                             /* addsd %xmm8, %xmm9 */
+    x6 = am_add(x6, x9);                                                                             /* addsd %xmm9, %xmm6 */
     std_((rsp + -40), x6);                                                                           /* movsd %xmm6, -40(%rsp) */
     rdx = (rdx & ~(uint64_t)0xff) | (uint8_t)(ld8((rsp + -33)));                                     /* movb -33(%rsp), %dl */
     { uint8_t t_ = (uint8_t)(((uint8_t)rdx) & ((uint8_t)(127))); rdx = (rdx & ~(uint64_t)0xff) | (uint8_t)(t_); fk = FK_INT; fw = 8; fa = (uint64_t)(t_); fb = 0; } /* andb $127, %dl */
@@ -336,10 +336,10 @@ svml_dasin_ha_cout_rare(const double *a0, double *a1)
 L_LBL_2_6:
     fk = FK_COMI; fx = x12; fy = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4128));                 /* comisd 4128+_vmldASinHATab(%rip), %xmm12 */
     if (cc_b(fk, fw, fa, fb, fx, fy)) goto L_LBL_2_8;                                                /* jb .LBL_2_8 */
-    x12 = x12 + x0;                                                                                  /* addsd %xmm0, %xmm12 */
+    x12 = am_add(x12, x0);                                                                           /* addsd %xmm0, %xmm12 */
     std_((rsp + -48), x12);                                                                          /* movsd %xmm12, -48(%rsp) */
     x0 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm0 */
-    x0 = x0 * ldd((rsp + -32));                                                                      /* mulsd -32(%rsp), %xmm0 */
+    x0 = am_mul(x0, ldd((rsp + -32)));                                                               /* mulsd -32(%rsp), %xmm0 */
     std_((rsp + -40), x0);                                                                           /* movsd %xmm0, -40(%rsp) */
     rdx = (rdx & ~(uint64_t)0xff) | (uint8_t)(ld8((rsp + -33)));                                     /* movb -33(%rsp), %dl */
     rdi = (rdi & ~(uint64_t)0xff) | (uint8_t)(ld8((rdi + 7)));                                       /* movb 7(%rdi), %dil */
@@ -351,12 +351,12 @@ L_LBL_2_6:
     st64((rsi), ((uint64_t)rcx));                                                                    /* movq %rcx, (%rsi) */
     return (int)(uint32_t)rax;                                                                       /* ret */
 L_LBL_2_8:
-    x12 = x12 * x12;                                                                                 /* mulsd %xmm12, %xmm12 */
+    x12 = am_mul(x12, x12);                                                                          /* mulsd %xmm12, %xmm12 */
     std_((rsp + -48), x12);                                                                          /* movsd %xmm12, -48(%rsp) */
     x0 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm0 */
     rdi = (rdi & ~(uint64_t)0xff) | (uint8_t)(ld8((rdi + 7)));                                       /* movb 7(%rdi), %dil */
     { uint8_t t_ = (uint8_t)(((uint8_t)rdi) & ((uint8_t)(-128))); rdi = (rdi & ~(uint64_t)0xff) | (uint8_t)(t_); fk = FK_INT; fw = 8; fa = (uint64_t)(t_); fb = 0; } /* andb $-128, %dil */
-    x0 = x0 + ldd((rsp + -32));                                                                      /* addsd -32(%rsp), %xmm0 */
+    x0 = am_add(x0, ldd((rsp + -32)));                                                               /* addsd -32(%rsp), %xmm0 */
     std_((rsp + -40), x0);                                                                           /* movsd %xmm0, -40(%rsp) */
     rdx = (rdx & ~(uint64_t)0xff) | (uint8_t)(ld8((rsp + -33)));                                     /* movb -33(%rsp), %dl */
     { uint8_t t_ = (uint8_t)(((uint8_t)rdx) & ((uint8_t)(127))); rdx = (rdx & ~(uint64_t)0xff) | (uint8_t)(t_); fk = FK_INT; fw = 8; fa = (uint64_t)(t_); fb = 0; } /* andb $127, %dl */
@@ -370,9 +370,9 @@ L_LBL_2_9:
     r9 = (uint32_t)(ld16(((uint64_t)(uintptr_t)T_vmldASinHATab + 4166)));                            /* movzwl 4166+_vmldASinHATab(%rip), %r9d */
     x15 = fzero;                                                                                     /* pxor %xmm15, %xmm15 */
     { uint32_t t_ = (uint32_t)(((uint32_t)r9) & ((uint32_t)(-32753))); r9 = (uint32_t)(t_); fk = FK_INT; fw = 32; fa = (uint64_t)(t_); fb = 0; } /* andl $-32753, %r9d */
-    x9 = x9 - x12;                                                                                   /* subsd %xmm12, %xmm9 */
-    x15 = x15 - x0;                                                                                  /* subsd %xmm0, %xmm15 */
-    x1 = x1 * x9;                                                                                    /* mulsd %xmm9, %xmm1 */
+    x9 = am_sub(x9, x12);                                                                            /* subsd %xmm12, %xmm9 */
+    x15 = am_sub(x15, x0);                                                                           /* subsd %xmm0, %xmm15 */
+    x1 = am_mul(x1, x9);                                                                             /* mulsd %xmm9, %xmm1 */
     std_((rsp + -32), x1);                                                                           /* movsd %xmm1, -32(%rsp) */
     rcx = (uint32_t)(ld16((rsp + -26)));                                                             /* movzwl -26(%rsp), %ecx */
     { uint32_t t_ = (uint32_t)(((uint32_t)rcx) & ((uint32_t)(32752))); rcx = (uint32_t)(t_); fk = FK_INT; fw = 32; fa = (uint64_t)(t_); fb = 0; } /* andl $32752, %ecx */
@@ -390,47 +390,47 @@ L_LBL_2_9:
     { uint32_t t_ = (uint32_t)(((uint32_t)rdx) & ((uint32_t)(1))); rdx = (uint32_t)(t_); fk = FK_INT; fw = 32; fa = (uint64_t)(t_); fb = 0; } /* andl $1, %edx */
     x10 = ldd((rsp + -24));                                                                          /* movsd -24(%rsp), %xmm10 */
     r10 = (uint32_t)(((uint32_t)rdx));                                                               /* movl %edx, %r10d */
-    x1 = x1 * x10;                                                                                   /* mulsd %xmm10, %xmm1 */
+    x1 = am_mul(x1, x10);                                                                            /* mulsd %xmm10, %xmm1 */
     r8 = ((uint64_t)(uintptr_t)T_vmldASinHATab + 0);                                                 /* lea _vmldASinHATab(%rip), %r8 */
     x6 = x1;                                                                                         /* movaps %xmm1, %xmm6 */
     x7 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4112));                                         /* movsd 4112+_vmldASinHATab(%rip), %xmm7 */
-    x6 = x6 + x1;                                                                                    /* addsd %xmm1, %xmm6 */
+    x6 = am_add(x6, x1);                                                                             /* addsd %xmm1, %xmm6 */
     if (cc_ne(fk, fw, fa, fb, fx, fy)) goto L__L54;                                                  /* jne ..L54 */
     x6 = x1;                                                                                         /* movaps %xmm1, %xmm6 */
 L__L54:
-    x7 = x7 * x6;                                                                                    /* mulsd %xmm6, %xmm7 */
+    x7 = am_mul(x7, x6);                                                                             /* mulsd %xmm6, %xmm7 */
     x8 = x6;                                                                                         /* movaps %xmm6, %xmm8 */
     x11 = x7;                                                                                        /* movaps %xmm7, %xmm11 */
     fk = FK_INT; fw = 32; fa = (uint64_t)(((uint32_t)rcx)); fb = (uint64_t)(((uint32_t)rdx)); rcx = (uint32_t)((uint32_t)(((uint32_t)rcx) - ((uint32_t)rdx))); /* subl %edx, %ecx */
     x13 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4120));                                        /* movsd 4120+_vmldASinHATab(%rip), %xmm13 */
-    x11 = x11 - x6;                                                                                  /* subsd %xmm6, %xmm11 */
-    x13 = x13 + x1;                                                                                  /* addsd %xmm1, %xmm13 */
+    x11 = am_sub(x11, x6);                                                                           /* subsd %xmm6, %xmm11 */
+    x13 = am_add(x13, x1);                                                                           /* addsd %xmm1, %xmm13 */
     std_((rsp + -56), x11);                                                                          /* movsd %xmm11, -56(%rsp) */
     x12 = ldd((rsp + -56));                                                                          /* movsd -56(%rsp), %xmm12 */
     std_((rsp + -16), x13);                                                                          /* movsd %xmm13, -16(%rsp) */
-    x7 = x7 - x12;                                                                                   /* subsd %xmm12, %xmm7 */
+    x7 = am_sub(x7, x12);                                                                            /* subsd %xmm12, %xmm7 */
     r11 = (uint32_t)(ld32((rsp + -16)));                                                             /* movl -16(%rsp), %r11d */
     x4 = x7;                                                                                         /* movaps %xmm7, %xmm4 */
     { uint32_t t_ = (uint32_t)(((uint32_t)r10) << 8); r10 = (uint32_t)(t_); fk = FK_BAD; }           /* shll $8, %r10d */
     { uint32_t t_ = (uint32_t)(((uint32_t)r11) & ((uint32_t)(511))); r11 = (uint32_t)(t_); fk = FK_INT; fw = 32; fa = (uint64_t)(t_); fb = 0; } /* andl $511, %r11d */
     { uint32_t t_ = (uint32_t)(((uint32_t)r11) + ((uint32_t)r10)); r11 = (uint32_t)(t_); fk = FK_INT; fw = 32; fa = (uint64_t)(t_); fb = 0; } /* addl %r10d, %r11d */
-    x8 = x8 - x7;                                                                                    /* subsd %xmm7, %xmm8 */
+    x8 = am_sub(x8, x7);                                                                             /* subsd %xmm7, %xmm8 */
     x3 = ldd((r8 + r11 * 8));                                                                        /* movsd (%r8,%r11,8), %xmm3 */
-    x4 = x4 + x8;                                                                                    /* addsd %xmm8, %xmm4 */
-    x7 = x7 * x3;                                                                                    /* mulsd %xmm3, %xmm7 */
+    x4 = am_add(x4, x8);                                                                             /* addsd %xmm8, %xmm4 */
+    x7 = am_mul(x7, x3);                                                                             /* mulsd %xmm3, %xmm7 */
     x14 = x3;                                                                                        /* movaps %xmm3, %xmm14 */
-    x14 = x14 * x3;                                                                                  /* mulsd %xmm3, %xmm14 */
-    x4 = x4 * x14;                                                                                   /* mulsd %xmm14, %xmm4 */
+    x14 = am_mul(x14, x3);                                                                           /* mulsd %xmm3, %xmm14 */
+    x4 = am_mul(x4, x14);                                                                            /* mulsd %xmm14, %xmm4 */
     x5 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4496));                                         /* movsd 4496+_vmldASinHATab(%rip), %xmm5 */
-    x4 = x4 + x15;                                                                                   /* addsd %xmm15, %xmm4 */
-    x5 = x5 * x4;                                                                                    /* mulsd %xmm4, %xmm5 */
+    x4 = am_add(x4, x15);                                                                            /* addsd %xmm15, %xmm4 */
+    x5 = am_mul(x5, x4);                                                                             /* mulsd %xmm4, %xmm5 */
     { uint32_t t_ = (uint32_t)(((uint32_t)rcx) >> 1); rcx = (uint32_t)(t_); fk = FK_BAD; }           /* shrl $1, %ecx */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4488));                                    /* addsd 4488+_vmldASinHATab(%rip), %xmm5 */
-    x5 = x5 * x4;                                                                                    /* mulsd %xmm4, %xmm5 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4488)));                             /* addsd 4488+_vmldASinHATab(%rip), %xmm5 */
+    x5 = am_mul(x5, x4);                                                                             /* mulsd %xmm4, %xmm5 */
     { uint32_t t_ = (uint32_t)(((uint32_t)rcx) + ((uint32_t)(1023))); rcx = (uint32_t)(t_); fk = FK_INT; fw = 32; fa = (uint64_t)(t_); fb = 0; } /* addl $1023, %ecx */
     { uint32_t t_ = (uint32_t)(((uint32_t)rcx) & ((uint32_t)(2047))); rcx = (uint32_t)(t_); fk = FK_INT; fw = 32; fa = (uint64_t)(t_); fb = 0; } /* andl $2047, %ecx */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4480));                                    /* addsd 4480+_vmldASinHATab(%rip), %xmm5 */
-    x5 = x5 * x4;                                                                                    /* mulsd %xmm4, %xmm5 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4480)));                             /* addsd 4480+_vmldASinHATab(%rip), %xmm5 */
+    x5 = am_mul(x5, x4);                                                                             /* mulsd %xmm4, %xmm5 */
     r9 = (uint32_t)(ld16(((uint64_t)(uintptr_t)T_vmldASinHATab + 4166)));                            /* movzwl 4166+_vmldASinHATab(%rip), %r9d */
     { uint32_t t_ = (uint32_t)(((uint32_t)rcx) << 4); rcx = (uint32_t)(t_); fk = FK_BAD; }           /* shll $4, %ecx */
     { uint32_t t_ = (uint32_t)(((uint32_t)r9) & ((uint32_t)(-32753))); r9 = (uint32_t)(t_); fk = FK_INT; fw = 32; fa = (uint64_t)(t_); fb = 0; } /* andl $-32753, %r9d */
@@ -438,179 +438,179 @@ L__L54:
     { uint32_t t_ = (uint32_t)(((uint32_t)r9) | ((uint32_t)rcx)); r9 = (uint32_t)(t_); fk = FK_INT; fw = 32; fa = (uint64_t)(t_); fb = 0; } /* orl %ecx, %r9d */
     st16((rsp + -2), ((uint16_t)r9));                                                                /* movw %r9w, -2(%rsp) */
     x12 = ldd((rsp + -8));                                                                           /* movsd -8(%rsp), %xmm12 */
-    x7 = x7 * x12;                                                                                   /* mulsd %xmm12, %xmm7 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4472));                                    /* addsd 4472+_vmldASinHATab(%rip), %xmm5 */
-    x5 = x5 * x4;                                                                                    /* mulsd %xmm4, %xmm5 */
+    x7 = am_mul(x7, x12);                                                                            /* mulsd %xmm12, %xmm7 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4472)));                             /* addsd 4472+_vmldASinHATab(%rip), %xmm5 */
+    x5 = am_mul(x5, x4);                                                                             /* mulsd %xmm4, %xmm5 */
     x1 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4104));                                         /* movsd 4104+_vmldASinHATab(%rip), %xmm1 */
-    x1 = x1 * x7;                                                                                    /* mulsd %xmm7, %xmm1 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4464));                                    /* addsd 4464+_vmldASinHATab(%rip), %xmm5 */
-    x5 = x5 * x4;                                                                                    /* mulsd %xmm4, %xmm5 */
+    x1 = am_mul(x1, x7);                                                                             /* mulsd %xmm7, %xmm1 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4464)));                             /* addsd 4464+_vmldASinHATab(%rip), %xmm5 */
+    x5 = am_mul(x5, x4);                                                                             /* mulsd %xmm4, %xmm5 */
     std_((rsp + -48), x1);                                                                           /* movsd %xmm1, -48(%rsp) */
     x0 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm0 */
     x13 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4336));                                        /* movsd 4336+_vmldASinHATab(%rip), %xmm13 */
-    x0 = x0 - x7;                                                                                    /* subsd %xmm7, %xmm0 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4456));                                    /* addsd 4456+_vmldASinHATab(%rip), %xmm5 */
-    x13 = x13 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4344));                                  /* addsd 4344+_vmldASinHATab(%rip), %xmm13 */
-    x5 = x5 * x4;                                                                                    /* mulsd %xmm4, %xmm5 */
-    x13 = x13 * x9;                                                                                  /* mulsd %xmm9, %xmm13 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4448));                                    /* addsd 4448+_vmldASinHATab(%rip), %xmm5 */
-    x5 = x5 * x4;                                                                                    /* mulsd %xmm4, %xmm5 */
-    x5 = x5 * x6;                                                                                    /* mulsd %xmm6, %xmm5 */
+    x0 = am_sub(x0, x7);                                                                             /* subsd %xmm7, %xmm0 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4456)));                             /* addsd 4456+_vmldASinHATab(%rip), %xmm5 */
+    x13 = am_add(x13, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4344)));                           /* addsd 4344+_vmldASinHATab(%rip), %xmm13 */
+    x5 = am_mul(x5, x4);                                                                             /* mulsd %xmm4, %xmm5 */
+    x13 = am_mul(x13, x9);                                                                           /* mulsd %xmm9, %xmm13 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4448)));                             /* addsd 4448+_vmldASinHATab(%rip), %xmm5 */
+    x5 = am_mul(x5, x4);                                                                             /* mulsd %xmm4, %xmm5 */
+    x5 = am_mul(x5, x6);                                                                             /* mulsd %xmm6, %xmm5 */
     std_((rsp + -56), x0);                                                                           /* movsd %xmm0, -56(%rsp) */
-    x8 = x8 + x5;                                                                                    /* addsd %xmm5, %xmm8 */
+    x8 = am_add(x8, x5);                                                                             /* addsd %xmm5, %xmm8 */
     x5 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4440));                                         /* movsd 4440+_vmldASinHATab(%rip), %xmm5 */
-    x5 = x5 * x9;                                                                                    /* mulsd %xmm9, %xmm5 */
-    x8 = x8 * x3;                                                                                    /* mulsd %xmm3, %xmm8 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4432));                                    /* addsd 4432+_vmldASinHATab(%rip), %xmm5 */
-    x8 = x8 * x12;                                                                                   /* mulsd %xmm12, %xmm8 */
-    x5 = x5 * x9;                                                                                    /* mulsd %xmm9, %xmm5 */
+    x5 = am_mul(x5, x9);                                                                             /* mulsd %xmm9, %xmm5 */
+    x8 = am_mul(x8, x3);                                                                             /* mulsd %xmm3, %xmm8 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4432)));                             /* addsd 4432+_vmldASinHATab(%rip), %xmm5 */
+    x8 = am_mul(x8, x12);                                                                            /* mulsd %xmm12, %xmm8 */
+    x5 = am_mul(x5, x9);                                                                             /* mulsd %xmm9, %xmm5 */
     x10 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm10 */
     x2 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm2 */
     x14 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4320));                                        /* movsd 4320+_vmldASinHATab(%rip), %xmm14 */
-    x10 = x10 - x2;                                                                                  /* subsd %xmm2, %xmm10 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4424));                                    /* addsd 4424+_vmldASinHATab(%rip), %xmm5 */
-    x14 = x14 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4328));                                  /* addsd 4328+_vmldASinHATab(%rip), %xmm14 */
-    x5 = x5 * x9;                                                                                    /* mulsd %xmm9, %xmm5 */
-    x14 = x14 + x13;                                                                                 /* addsd %xmm13, %xmm14 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4416));                                    /* addsd 4416+_vmldASinHATab(%rip), %xmm5 */
-    x14 = x14 * x9;                                                                                  /* mulsd %xmm9, %xmm14 */
-    x5 = x5 * x9;                                                                                    /* mulsd %xmm9, %xmm5 */
+    x10 = am_sub(x10, x2);                                                                           /* subsd %xmm2, %xmm10 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4424)));                             /* addsd 4424+_vmldASinHATab(%rip), %xmm5 */
+    x14 = am_add(x14, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4328)));                           /* addsd 4328+_vmldASinHATab(%rip), %xmm14 */
+    x5 = am_mul(x5, x9);                                                                             /* mulsd %xmm9, %xmm5 */
+    x14 = am_add(x14, x13);                                                                          /* addsd %xmm13, %xmm14 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4416)));                             /* addsd 4416+_vmldASinHATab(%rip), %xmm5 */
+    x14 = am_mul(x14, x9);                                                                           /* mulsd %xmm9, %xmm14 */
+    x5 = am_mul(x5, x9);                                                                             /* mulsd %xmm9, %xmm5 */
     std_((rsp + -48), x10);                                                                          /* movsd %xmm10, -48(%rsp) */
     x2 = x9;                                                                                         /* movaps %xmm9, %xmm2 */
     x11 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm11 */
     x3 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4104));                                         /* movsd 4104+_vmldASinHATab(%rip), %xmm3 */
-    x7 = x7 - x11;                                                                                   /* subsd %xmm11, %xmm7 */
-    x3 = x3 * x9;                                                                                    /* mulsd %xmm9, %xmm3 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4408));                                    /* addsd 4408+_vmldASinHATab(%rip), %xmm5 */
-    x5 = x5 * x9;                                                                                    /* mulsd %xmm9, %xmm5 */
+    x7 = am_sub(x7, x11);                                                                            /* subsd %xmm11, %xmm7 */
+    x3 = am_mul(x3, x9);                                                                             /* mulsd %xmm9, %xmm3 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4408)));                             /* addsd 4408+_vmldASinHATab(%rip), %xmm5 */
+    x5 = am_mul(x5, x9);                                                                             /* mulsd %xmm9, %xmm5 */
     x4 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4304));                                         /* movsd 4304+_vmldASinHATab(%rip), %xmm4 */
     std_((rsp + -56), x7);                                                                           /* movsd %xmm7, -56(%rsp) */
     x6 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm6 */
     x7 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm7 */
     std_((rsp + -48), x3);                                                                           /* movsd %xmm3, -48(%rsp) */
-    x8 = x8 + x7;                                                                                    /* addsd %xmm7, %xmm8 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4400));                                    /* addsd 4400+_vmldASinHATab(%rip), %xmm5 */
-    x4 = x4 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4312));                                    /* addsd 4312+_vmldASinHATab(%rip), %xmm4 */
-    x5 = x5 * x9;                                                                                    /* mulsd %xmm9, %xmm5 */
-    x4 = x4 + x14;                                                                                   /* addsd %xmm14, %xmm4 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4392));                                    /* addsd 4392+_vmldASinHATab(%rip), %xmm5 */
-    x5 = x5 * x9;                                                                                    /* mulsd %xmm9, %xmm5 */
+    x8 = am_add(x8, x7);                                                                             /* addsd %xmm7, %xmm8 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4400)));                             /* addsd 4400+_vmldASinHATab(%rip), %xmm5 */
+    x4 = am_add(x4, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4312)));                             /* addsd 4312+_vmldASinHATab(%rip), %xmm4 */
+    x5 = am_mul(x5, x9);                                                                             /* mulsd %xmm9, %xmm5 */
+    x4 = am_add(x4, x14);                                                                            /* addsd %xmm14, %xmm4 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4392)));                             /* addsd 4392+_vmldASinHATab(%rip), %xmm5 */
+    x5 = am_mul(x5, x9);                                                                             /* mulsd %xmm9, %xmm5 */
     x1 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm1 */
     x7 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4104));                                         /* movsd 4104+_vmldASinHATab(%rip), %xmm7 */
-    x1 = x1 - x9;                                                                                    /* subsd %xmm9, %xmm1 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4384));                                    /* addsd 4384+_vmldASinHATab(%rip), %xmm5 */
-    x5 = x5 * x9;                                                                                    /* mulsd %xmm9, %xmm5 */
+    x1 = am_sub(x1, x9);                                                                             /* subsd %xmm9, %xmm1 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4384)));                             /* addsd 4384+_vmldASinHATab(%rip), %xmm5 */
+    x5 = am_mul(x5, x9);                                                                             /* mulsd %xmm9, %xmm5 */
     std_((rsp + -56), x1);                                                                           /* movsd %xmm1, -56(%rsp) */
     x0 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm0 */
     x15 = ldd((rsp + -56));                                                                          /* movsd -56(%rsp), %xmm15 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4376));                                    /* addsd 4376+_vmldASinHATab(%rip), %xmm5 */
-    x0 = x0 - x15;                                                                                   /* subsd %xmm15, %xmm0 */
-    x5 = x5 * x9;                                                                                    /* mulsd %xmm9, %xmm5 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4376)));                             /* addsd 4376+_vmldASinHATab(%rip), %xmm5 */
+    x0 = am_sub(x0, x15);                                                                            /* subsd %xmm15, %xmm0 */
+    x5 = am_mul(x5, x9);                                                                             /* mulsd %xmm9, %xmm5 */
     std_((rsp + -48), x0);                                                                           /* movsd %xmm0, -48(%rsp) */
     x0 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4320));                                         /* movsd 4320+_vmldASinHATab(%rip), %xmm0 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4368));                                    /* addsd 4368+_vmldASinHATab(%rip), %xmm5 */
-    x5 = x5 * x9;                                                                                    /* mulsd %xmm9, %xmm5 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4360));                                    /* addsd 4360+_vmldASinHATab(%rip), %xmm5 */
-    x5 = x5 * x9;                                                                                    /* mulsd %xmm9, %xmm5 */
-    x5 = x5 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4352));                                    /* addsd 4352+_vmldASinHATab(%rip), %xmm5 */
-    x5 = x5 * x9;                                                                                    /* mulsd %xmm9, %xmm5 */
-    x5 = x5 * x9;                                                                                    /* mulsd %xmm9, %xmm5 */
-    x5 = x5 * x9;                                                                                    /* mulsd %xmm9, %xmm5 */
-    x4 = x4 + x5;                                                                                    /* addsd %xmm5, %xmm4 */
-    x8 = x8 * x4;                                                                                    /* mulsd %xmm4, %xmm8 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4368)));                             /* addsd 4368+_vmldASinHATab(%rip), %xmm5 */
+    x5 = am_mul(x5, x9);                                                                             /* mulsd %xmm9, %xmm5 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4360)));                             /* addsd 4360+_vmldASinHATab(%rip), %xmm5 */
+    x5 = am_mul(x5, x9);                                                                             /* mulsd %xmm9, %xmm5 */
+    x5 = am_add(x5, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4352)));                             /* addsd 4352+_vmldASinHATab(%rip), %xmm5 */
+    x5 = am_mul(x5, x9);                                                                             /* mulsd %xmm9, %xmm5 */
+    x5 = am_mul(x5, x9);                                                                             /* mulsd %xmm9, %xmm5 */
+    x5 = am_mul(x5, x9);                                                                             /* mulsd %xmm9, %xmm5 */
+    x4 = am_add(x4, x5);                                                                             /* addsd %xmm5, %xmm4 */
+    x8 = am_mul(x8, x4);                                                                             /* mulsd %xmm4, %xmm8 */
     x4 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm4 */
-    x2 = x2 - x4;                                                                                    /* subsd %xmm4, %xmm2 */
+    x2 = am_sub(x2, x4);                                                                             /* subsd %xmm4, %xmm2 */
     std_((rsp + -56), x2);                                                                           /* movsd %xmm2, -56(%rsp) */
     x4 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm4 */
     x13 = x4;                                                                                        /* movaps %xmm4, %xmm13 */
-    x13 = x13 * x4;                                                                                  /* mulsd %xmm4, %xmm13 */
-    x0 = x0 * x4;                                                                                    /* mulsd %xmm4, %xmm0 */
-    x4 = x4 + x9;                                                                                    /* addsd %xmm9, %xmm4 */
-    x7 = x7 * x13;                                                                                   /* mulsd %xmm13, %xmm7 */
+    x13 = am_mul(x13, x4);                                                                           /* mulsd %xmm4, %xmm13 */
+    x0 = am_mul(x0, x4);                                                                             /* mulsd %xmm4, %xmm0 */
+    x4 = am_add(x4, x9);                                                                             /* addsd %xmm9, %xmm4 */
+    x7 = am_mul(x7, x13);                                                                            /* mulsd %xmm13, %xmm7 */
     x3 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm3 */
     std_((rsp + -48), x7);                                                                           /* movsd %xmm7, -48(%rsp) */
     x10 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm10 */
-    x4 = x4 * x3;                                                                                    /* mulsd %xmm3, %xmm4 */
-    x10 = x10 - x13;                                                                                 /* subsd %xmm13, %xmm10 */
+    x4 = am_mul(x4, x3);                                                                             /* mulsd %xmm3, %xmm4 */
+    x10 = am_sub(x10, x13);                                                                          /* subsd %xmm13, %xmm10 */
     std_((rsp + -56), x10);                                                                          /* movsd %xmm10, -56(%rsp) */
     x11 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm11 */
     x1 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm1 */
     x10 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4304));                                        /* movsd 4304+_vmldASinHATab(%rip), %xmm10 */
-    x11 = x11 - x1;                                                                                  /* subsd %xmm1, %xmm11 */
+    x11 = am_sub(x11, x1);                                                                           /* subsd %xmm1, %xmm11 */
     std_((rsp + -48), x11);                                                                          /* movsd %xmm11, -48(%rsp) */
     x1 = x0;                                                                                         /* movaps %xmm0, %xmm1 */
     x12 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm12 */
     x11 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4304));                                        /* movsd 4304+_vmldASinHATab(%rip), %xmm11 */
-    x13 = x13 - x12;                                                                                 /* subsd %xmm12, %xmm13 */
+    x13 = am_sub(x13, x12);                                                                          /* subsd %xmm12, %xmm13 */
     std_((rsp + -56), x13);                                                                          /* movsd %xmm13, -56(%rsp) */
     x7 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm7 */
-    x7 = x7 * ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4336));                                    /* mulsd 4336+_vmldASinHATab(%rip), %xmm7 */
+    x7 = am_mul(x7, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4336)));                             /* mulsd 4336+_vmldASinHATab(%rip), %xmm7 */
     x2 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm2 */
-    x1 = x1 + x7;                                                                                    /* addsd %xmm7, %xmm1 */
-    x4 = x4 + x2;                                                                                    /* addsd %xmm2, %xmm4 */
+    x1 = am_add(x1, x7);                                                                             /* addsd %xmm7, %xmm1 */
+    x4 = am_add(x4, x2);                                                                             /* addsd %xmm2, %xmm4 */
     std_((rsp + -48), x1);                                                                           /* movsd %xmm1, -48(%rsp) */
     x14 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm14 */
     std_((rsp + -16), x7);                                                                           /* movsd %xmm7, -16(%rsp) */
-    x0 = x0 - x14;                                                                                   /* subsd %xmm14, %xmm0 */
-    x4 = x4 * ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4336));                                    /* mulsd 4336+_vmldASinHATab(%rip), %xmm4 */
-    x7 = x7 + x0;                                                                                    /* addsd %xmm0, %xmm7 */
+    x0 = am_sub(x0, x14);                                                                            /* subsd %xmm14, %xmm0 */
+    x4 = am_mul(x4, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4336)));                             /* mulsd 4336+_vmldASinHATab(%rip), %xmm4 */
+    x7 = am_add(x7, x0);                                                                             /* addsd %xmm0, %xmm7 */
     std_((rsp + -56), x7);                                                                           /* movsd %xmm7, -56(%rsp) */
     x12 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm12 */
     x1 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm1 */
-    x10 = x10 + x12;                                                                                 /* addsd %xmm12, %xmm10 */
+    x10 = am_add(x10, x12);                                                                          /* addsd %xmm12, %xmm10 */
     std_((rsp + -48), x10);                                                                          /* movsd %xmm10, -48(%rsp) */
     x15 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm15 */
     x7 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4104));                                         /* movsd 4104+_vmldASinHATab(%rip), %xmm7 */
-    x11 = x11 - x15;                                                                                 /* subsd %xmm15, %xmm11 */
+    x11 = am_sub(x11, x15);                                                                          /* subsd %xmm15, %xmm11 */
     x2 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4320));                                         /* movsd 4320+_vmldASinHATab(%rip), %xmm2 */
-    x12 = x12 + x11;                                                                                 /* addsd %xmm11, %xmm12 */
-    x2 = x2 * x3;                                                                                    /* mulsd %xmm3, %xmm2 */
+    x12 = am_add(x12, x11);                                                                          /* addsd %xmm11, %xmm12 */
+    x2 = am_mul(x2, x3);                                                                             /* mulsd %xmm3, %xmm2 */
     std_((rsp + -56), x12);                                                                          /* movsd %xmm12, -56(%rsp) */
     x15 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm15 */
-    x7 = x7 * x15;                                                                                   /* mulsd %xmm15, %xmm7 */
+    x7 = am_mul(x7, x15);                                                                            /* mulsd %xmm15, %xmm7 */
     x0 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm0 */
     std_((rsp + -48), x7);                                                                           /* movsd %xmm7, -48(%rsp) */
     x10 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm10 */
     x3 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4344));                                         /* movsd 4344+_vmldASinHATab(%rip), %xmm3 */
-    x10 = x10 - x15;                                                                                 /* subsd %xmm15, %xmm10 */
-    x3 = x3 * x9;                                                                                    /* mulsd %xmm9, %xmm3 */
+    x10 = am_sub(x10, x15);                                                                          /* subsd %xmm15, %xmm10 */
+    x3 = am_mul(x3, x9);                                                                             /* mulsd %xmm9, %xmm3 */
     std_((rsp + -56), x10);                                                                          /* movsd %xmm10, -56(%rsp) */
     x11 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm11 */
     x13 = ldd((rsp + -56));                                                                          /* movsd -56(%rsp), %xmm13 */
-    x11 = x11 - x13;                                                                                 /* subsd %xmm13, %xmm11 */
-    x3 = x3 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4328));                                    /* addsd 4328+_vmldASinHATab(%rip), %xmm3 */
+    x11 = am_sub(x11, x13);                                                                          /* subsd %xmm13, %xmm11 */
+    x3 = am_add(x3, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4328)));                             /* addsd 4328+_vmldASinHATab(%rip), %xmm3 */
     std_((rsp + -48), x11);                                                                          /* movsd %xmm11, -48(%rsp) */
     x14 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm14 */
-    x3 = x3 * x9;                                                                                    /* mulsd %xmm9, %xmm3 */
-    x15 = x15 - x14;                                                                                 /* subsd %xmm14, %xmm15 */
+    x3 = am_mul(x3, x9);                                                                             /* mulsd %xmm9, %xmm3 */
+    x15 = am_sub(x15, x14);                                                                          /* subsd %xmm14, %xmm15 */
     std_((rsp + -56), x15);                                                                          /* movsd %xmm15, -56(%rsp) */
     x10 = ldd((rsp + -48));                                                                          /* movsd -48(%rsp), %xmm10 */
     x7 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm7 */
-    x4 = x4 + x7;                                                                                    /* addsd %xmm7, %xmm4 */
-    x3 = x3 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4312));                                    /* addsd 4312+_vmldASinHATab(%rip), %xmm3 */
-    x4 = x4 + x2;                                                                                    /* addsd %xmm2, %xmm4 */
-    x3 = x3 + x5;                                                                                    /* addsd %xmm5, %xmm3 */
-    x4 = x4 + x1;                                                                                    /* addsd %xmm1, %xmm4 */
-    x4 = x4 + x0;                                                                                    /* addsd %xmm0, %xmm4 */
+    x4 = am_add(x4, x7);                                                                             /* addsd %xmm7, %xmm4 */
+    x3 = am_add(x3, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4312)));                             /* addsd 4312+_vmldASinHATab(%rip), %xmm3 */
+    x4 = am_add(x4, x2);                                                                             /* addsd %xmm2, %xmm4 */
+    x3 = am_add(x3, x5);                                                                             /* addsd %xmm5, %xmm3 */
+    x4 = am_add(x4, x1);                                                                             /* addsd %xmm1, %xmm4 */
+    x4 = am_add(x4, x0);                                                                             /* addsd %xmm0, %xmm4 */
     x0 = ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4144));                                         /* movsd 4144+_vmldASinHATab(%rip), %xmm0 */
-    x4 = x4 + x3;                                                                                    /* addsd %xmm3, %xmm4 */
-    x4 = x4 * x6;                                                                                    /* mulsd %xmm6, %xmm4 */
-    x6 = x6 * x10;                                                                                   /* mulsd %xmm10, %xmm6 */
-    x4 = x4 + x8;                                                                                    /* addsd %xmm8, %xmm4 */
+    x4 = am_add(x4, x3);                                                                             /* addsd %xmm3, %xmm4 */
+    x4 = am_mul(x4, x6);                                                                             /* mulsd %xmm6, %xmm4 */
+    x6 = am_mul(x6, x10);                                                                            /* mulsd %xmm10, %xmm6 */
+    x4 = am_add(x4, x8);                                                                             /* addsd %xmm8, %xmm4 */
     x8 = x0;                                                                                         /* movaps %xmm0, %xmm8 */
-    x8 = x8 - x6;                                                                                    /* subsd %xmm6, %xmm8 */
+    x8 = am_sub(x8, x6);                                                                             /* subsd %xmm6, %xmm8 */
     std_((rsp + -48), x8);                                                                           /* movsd %xmm8, -48(%rsp) */
     x9 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm9 */
-    x0 = x0 - x9;                                                                                    /* subsd %xmm9, %xmm0 */
-    x0 = x0 - x6;                                                                                    /* subsd %xmm6, %xmm0 */
+    x0 = am_sub(x0, x9);                                                                             /* subsd %xmm9, %xmm0 */
+    x0 = am_sub(x0, x6);                                                                             /* subsd %xmm6, %xmm0 */
     std_((rsp + -56), x0);                                                                           /* movsd %xmm0, -56(%rsp) */
     x2 = ldd((rsp + -48));                                                                           /* movsd -48(%rsp), %xmm2 */
     x1 = ldd((rsp + -56));                                                                           /* movsd -56(%rsp), %xmm1 */
     rdi = (rdi & ~(uint64_t)0xff) | (uint8_t)(ld8((rdi + 7)));                                       /* movb 7(%rdi), %dil */
     { uint8_t t_ = (uint8_t)(((uint8_t)rdi) & ((uint8_t)(-128))); rdi = (rdi & ~(uint64_t)0xff) | (uint8_t)(t_); fk = FK_INT; fw = 8; fa = (uint64_t)(t_); fb = 0; } /* andb $-128, %dil */
-    x1 = x1 + ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4152));                                    /* addsd 4152+_vmldASinHATab(%rip), %xmm1 */
-    x1 = x1 - x4;                                                                                    /* subsd %xmm4, %xmm1 */
-    x2 = x2 + x1;                                                                                    /* addsd %xmm1, %xmm2 */
+    x1 = am_add(x1, ldd(((uint64_t)(uintptr_t)T_vmldASinHATab + 4152)));                             /* addsd 4152+_vmldASinHATab(%rip), %xmm1 */
+    x1 = am_sub(x1, x4);                                                                             /* subsd %xmm4, %xmm1 */
+    x2 = am_add(x2, x1);                                                                             /* addsd %xmm1, %xmm2 */
     std_((rsp + -40), x2);                                                                           /* movsd %xmm2, -40(%rsp) */
     rdx = (rdx & ~(uint64_t)0xff) | (uint8_t)(ld8((rsp + -33)));                                     /* movb -33(%rsp), %dl */
     { uint8_t t_ = (uint8_t)(((uint8_t)rdx) & ((uint8_t)(127))); rdx = (rdx & ~(uint64_t)0xff) | (uint8_t)(t_); fk = FK_INT; fw = 8; fa = (uint64_t)(t_); fb = 0; } /* andb $127, %dl */
@@ -623,13 +623,13 @@ L_LBL_2_10:
     rax = (uint32_t)(((uint32_t)(1)));                                                               /* movl $1, %eax */
     x1 = fzero;                                                                                      /* pxor %xmm1, %xmm1 */
     x0 = fzero;                                                                                      /* pxor %xmm0, %xmm0 */
-    x1 = x1 / x0;                                                                                    /* divsd %xmm0, %xmm1 */
+    x1 = am_div(x1, x0);                                                                             /* divsd %xmm0, %xmm1 */
     std_((rsi), x1);                                                                                 /* movsd %xmm1, (%rsi) */
 L_LBL_2_11:
     return (int)(uint32_t)rax;                                                                       /* ret */
 L_LBL_2_12:
     x0 = ldd((rdi));                                                                                 /* movsd (%rdi), %xmm0 */
-    x0 = x0 / x0;                                                                                    /* divsd %xmm0, %xmm0 */
+    x0 = am_div(x0, x0);                                                                             /* divsd %xmm0, %xmm0 */
     std_((rsi), x0);                                                                                 /* movsd %xmm0, (%rsi) */
     { uint32_t t_ = (uint32_t)(ld32((rdi + 4)) & ((uint32_t)(1048575))); fk = FK_INT; fw = 32; fa = (uint64_t)(t_); fb = 0; } /* testl $1048575, 4(%rdi) */
     if (cc_ne(fk, fw, fa, fb, fx, fy)) goto L_LBL_2_11;                                              /* jne .LBL_2_11 */
