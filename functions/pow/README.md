@@ -93,6 +93,11 @@ there rcp14's 2^−14 error decides the rounding. Two facts make it exactly emul
    per prefix. That value is non-increasing, with exactly 32 switch points (one per step k → k−1), which
    it writes to `hwy/rcp14_switch.inc`.
 
+The same 32 switch points follow, without SDE, from the integer re-implementation of Intel's `RCP14D`
+written for tan (branch `port/trig`, `functions/tan/rcp14_ref.h`, verified there bit-exact against SDE). pow
+does not need `vrcp14pd`'s own bits, only their rounding to 1/32, so it uses the switch points rather than
+the full piecewise-linear formula.
+
 So rounded rcp = f(prefix), a monotone step function whose steps are known exactly. The emulation computes
 t = 32/q (one division; floor and round of t are exact because 32/q is never within 2^−18 of an integer
 or half-integer for a 17-bit q). round(t) is correct wherever t is more than 0.0034 from a half-integer:
