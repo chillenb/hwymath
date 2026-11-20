@@ -1,0 +1,33 @@
+[workspace]
+name = "hwymath"
+description = "Vectorized double-precision exp: SVML translation, AVX2 ports and a Google Highway version"
+channels = ["conda-forge"]
+platforms = ["linux-64", "linux-aarch64"]
+
+[dependencies]
+c-compiler = "*"
+cxx-compiler = "*"
+make = "*"
+python = ">=3.11"
+libhwy = "1.4.*"
+sleef = "3.9.*"
+
+[target.linux-64.dependencies]
+# Intel's runtime with libsvml.so (closed source, redistributable): comparison target only
+intel-cmplr-lib-rt = "*"
+
+# local cross-architecture check (make xcheck): AArch64 cross compiler + QEMU user-mode emulator
+[feature.cross.target.linux-64.dependencies]
+gxx_linux-aarch64 = "*"
+qemu-execve-aarch64 = "*"
+
+[environments]
+cross = ["cross"]
+
+[tasks]
+build = "make all"
+test = "make test"
+compare = "make compare"
+bench = "make bench"
+hwy = "make hwy"
+insns = "make insns"
