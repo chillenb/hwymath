@@ -1,7 +1,7 @@
 #!/bin/bash
 # Cross-architecture check of the Highway pow: builds one static binary per target (x86-64 AVX2 natively,
 # AArch64 NEON/SVE/SVE2 with the conda-forge cross compiler), runs the AArch64 ones under QEMU (SVE at
-# 128/256/512/2048-bit vectors), and compares inputs and results bit for bit with the x86-64 run (whose AVX2
+# 128/256/512/2048-bit vectors, and the fixed-size SVE_256 and SVE2_128 targets), and compares inputs and results bit for bit with the x86-64 run (whose AVX2
 # results equal Intel's AVX-512 code: make pow-avx512-test).
 # usage: functions/pow/tools/xcheck.sh HWY_PREFIX CROSS_PREFIX [N_RANDOM]   (run from the repository root;
 #        `pixi run -e cross make pow-xcheck` does that)
@@ -35,5 +35,12 @@ for v in "neon:-march=armv8-a" "sve:-march=armv8.2-a+sve" "sve2:-march=armv9-a+s
             check a64_${name}_$vl
         done
     fi
+done
+# fixed-size SVE targets (sizeless vectors with a compile-time length)
+for v in "sve_fixed256:-march=armv8.2-a+sve -msve-vector-bits=256:32" "sve2_fixed128:-march=armv9-a+sve2 -msve-vector-bits=128:16"; do
+    IFS=: read -r name march vl <<< "$v"
+    $CXX $F $march -static $SRC $O/rare_a64.o -lm -o $O/xcheck_a64_$name
+    $QEMU -cpu max,sve-default-vector-length=$vl ./$O/xcheck_a64_$name $O/a64_$name "$NR"
+    check a64_$name
 done
 exit $fail

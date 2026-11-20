@@ -74,7 +74,7 @@ Same algorithm, constants and operation order, with dynamic dispatch. On every t
 | `vaddpd {rz-sae}` (S) | TwoSum error sign |
 | `vaddpd {rd-sae}` (shifter) | shifter + floor(16 S)/16 (exact) |
 | `vreducepd` 0x41 | S − floor(16 S)/16. Per the SDM the subtraction uses the immediate's rounding (down). It is inexact only for −1/32 < S < 0, where a Fast2Sum error picks the lower neighbour. An exact zero becomes −0, as x − x does when rounding down |
-| `vpermt2pd` (32- and 16-entry) | `TwoTablesLookupLanes` (vpermt2pd on AVX-512) on chunks of 2N entries, then a tree of `IfNegativeThenElse` on the index bits (chunk compares on scalable vectors), or one `TableLookupLanes` when a vector holds the table. Tables are `constexpr`, with no gathers |
+| `vpermt2pd` (32- and 16-entry) | `TwoTablesLookupLanes` (vpermt2pd on AVX-512) on chunks of 2N entries, then a recursive tree of `IfNegativeThenElse` on the index bits (no arrays: SVE vectors are sizeless), or one `TableLookupLanes` when a vector holds the table. Tables are `constexpr`, with no gathers |
 | `vfpclasspd`, `vcmppd` | compares (`!(x > 0 && x < inf)`, `!(|y| < inf)`, `!(|S| <= 1021.5)`) |
 
 ### Why `vrcp14pd` can be emulated exactly
@@ -143,7 +143,7 @@ operation tests catch each such mutation immediately.
 | `test_pow8` | Intel's `__svml_pow8_ha`, all 8 lanes bit for bit (AVX-512F/DQ; Intel SDE here) | 2,095,072 pairs, 0 mismatches |
 | `hwy_test` | every Highway target: accuracy vs `powl`, identity across targets, with AVX-512 bit-identity with the C translation and the emulated operations vs the instructions, hashes (`--hash`) | all checks pass |
 | `make pow-insns` | arithmetic instruction mix of the compiled vector path vs the assembly | identical |
-| `make pow-xcheck` | static AVX2 build vs AArch64 NEON/SVE/SVE2 (SVE at 128–2048 bits) under QEMU, inputs and results bit for bit (NaNs canonical: 0/0 gives −NaN on x86-64, +NaN on AArch64) | identical |
+| `make pow-xcheck` | static AVX2 build vs AArch64 NEON/SVE/SVE2 (SVE at 128–2048 bits, fixed-size SVE_256 and SVE2_128) under QEMU, inputs and results bit for bit (NaNs canonical: 0/0 gives −NaN on x86-64, +NaN on AArch64) | identical |
 
 Inputs (`tests/inputs.h`, 2-D, deterministic and libm-free so that they are identical on every
 architecture):

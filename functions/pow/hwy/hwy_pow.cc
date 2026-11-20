@@ -48,41 +48,36 @@ static HWY_NOINLINE __attribute__((cold)) void FixSpecial(const double *x, const
     }
 }
 
+// entries [lo, lo + kSize) of a table, kSize >= 2N, idx < T: TwoTablesLookupLanes on chunks of 2N entries
+// (vpermt2pd on AVX-512, like the assembly) combined by a binary tree of selects on the higher index bits
+// (blend on the sign bit). Recursion instead of arrays: SVE vectors are sizeless and cannot be array
+// elements, also on the fixed-size SVE_256/SVE2_128 targets.
+template <size_t kSize, class D, class VU, class VI>
+HWY_INLINE V<D> LookupTree(D d, const double *tab, VI ind, VU idx) {
+    const size_t N = hn::Lanes(d);
+    if (kSize <= 2 * N) return hn::TwoTablesLookupLanes(d, hn::LoadU(d, tab), hn::LoadU(d, tab + N), ind);
+    if constexpr (kSize > 2) {
+        const hn::RebindToSigned<D> di;
+        constexpr int kBit = hwy::FloorLog2(kSize / 2);  // index bit selecting the upper half
+        const auto lo = LookupTree<kSize / 2>(d, tab, ind, idx);
+        const auto hi = LookupTree<kSize / 2>(d, tab + kSize / 2, ind, idx);
+        return hn::IfNegativeThenElse(hn::BitCast(d, hn::ShiftLeft<63 - kBit>(hn::BitCast(di, idx))), hi, lo);
+    }
+    return hn::Zero(d);  // not reached
+}
+
 // lookup in a T-entry table (T = 16 or 32), idx < T: one TableLookupLanes if a vector holds the table,
-// otherwise TwoTablesLookupLanes on chunks of 2N entries (vpermt2pd on AVX-512, like the assembly), combined
-// by a binary tree of selects on the higher index bits (blend on the sign bit)
+// otherwise LookupTree
 template <size_t T, class D, class VU>
 HWY_INLINE V<D> Lookup(D d, const double *tab, const double *pad, VU idx) {
     const hn::RebindToSigned<D> di;
+    const hn::RebindToUnsigned<D> du;
     const size_t N = hn::Lanes(d);
     if (N >= T && N <= 64) return hn::TableLookupLanes(hn::LoadU(d, pad), hn::IndicesFromVec(d, hn::BitCast(di, idx)));
     if (N == 1) return hn::Set(d, tab[hn::GetLane(idx)]);
     // TwoTablesLookupLanes: indices must be < 2N (NEON's tbl returns 0 for larger ones)
-    const hn::RebindToUnsigned<D> du;
     const auto ind = hn::IndicesFromVec(d, hn::BitCast(di, hn::And(idx, hn::Set(du, 2 * N - 1))));
-#if HWY_HAVE_SCALABLE  // no arrays of sizeless vectors: select chunk by chunk
-    V<D> r = hn::TwoTablesLookupLanes(d, hn::LoadU(d, tab), hn::LoadU(d, tab + N), ind);
-    const auto chunk = hn::And(idx, hn::Set(du, ~uint64_t(2 * N - 1)));
-    for (size_t c = 2 * N; c < T; c += 2 * N) {
-        const auto v = hn::TwoTablesLookupLanes(d, hn::LoadU(d, tab + c), hn::LoadU(d, tab + c + N), ind);
-        r = hn::IfThenElse(hn::RebindMask(d, hn::Eq(chunk, hn::Set(du, c))), v, r);
-    }
-    return r;
-#else
-    V<D> part[T / 2];
-    size_t np = 0;
-    for (size_t c = 0; c < T; c += 2 * N) {
-        part[np++] = hn::TwoTablesLookupLanes(d, hn::LoadU(d, tab + c), hn::LoadU(d, tab + c + N), ind);
-    }
-    // index bit b selects between neighbouring parts: shift it into the sign bit
-    for (size_t chunk = 2 * N, b = 0; chunk < T; chunk *= 2) {
-        while ((size_t{1} << b) < chunk) b++;
-        const auto sel = hn::BitCast(d, hn::ShiftLeftSame(hn::BitCast(di, idx), static_cast<int>(63 - b)));
-        for (size_t k = 0; 2 * k < np; k++) part[k] = hn::IfNegativeThenElse(sel, part[2 * k + 1], part[2 * k]);
-        np /= 2;
-    }
-    return part[0];
-#endif
+    return LookupTree<T>(d, tab, ind, idx);
 }
 
 // round toward zero, given the round-to-nearest result r and (the sign of) the exact error of r: step r
