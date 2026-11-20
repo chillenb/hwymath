@@ -1,7 +1,7 @@
 # cos, double precision: bit-identical C/AVX-512 translation of svml_z0_cos_d_ha.s and a Google Highway
 # version. Shares the large-argument reduction, the constant generator and the test templates with sin
-# (functions/sin, functions/sin/trig_common.mk). Targets: cos-all cos-test cos-hwy cos-hashes, and on x86-64 also
-# cos-insns cos-avx512-test.
+# (functions/sin, functions/sin/trig_common.mk). Targets: cos-all cos-test cos-hwy cos-hashes
+# cos-xcheck, and on x86-64 also cos-insns cos-avx512-test.
 
 COS     := functions/cos
 SIN     := functions/sin
@@ -63,6 +63,11 @@ ALL_TARGETS    += cos-all
 TEST_TARGETS   += cos-test
 HWY_TARGETS    += cos-hwy
 HASHES_TARGETS += cos-hashes
+# Highway cos on AArch64 NEON/SVE/SVE2 under QEMU vs x86-64 (run in the cross environment:
+# pixi run -e cross make cos-xcheck)
+cos-xcheck: $(COS_GEN)
+	./functions/sin/tools/xcheck.sh cos $(PREFIX) $(PREFIX)
+XCHECK_TARGETS += cos-xcheck
 
 ifeq ($(ARCH),x86_64)
 cos-insns: $(COS_B)/svml_cos_d_ha.o $(COS_B)/svml_asm.o
@@ -75,4 +80,4 @@ INSNS_TARGETS  += cos-insns
 AVX512_TARGETS += cos-avx512-test
 endif
 
-.PHONY: cos-all cos-test cos-hwy cos-hashes cos-insns cos-avx512-test
+.PHONY: cos-all cos-test cos-hwy cos-hashes cos-xcheck cos-insns cos-avx512-test

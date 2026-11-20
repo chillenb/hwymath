@@ -2,8 +2,8 @@
 # version. Also owns the large-argument reduction shared with cos and tan (svml/svml_trig_reduction.h,
 # svml/svml_trig_reduction_data.inc, hwy/trig_hwy-inl.h), the sin/cos constant generator, the test
 # templates (tests/*_tmpl.h, tests/inputs.h) and trig_common.mk. Included by the top-level Makefile;
-# paths are relative to the repository root. Targets: sin-all sin-test sin-hwy sin-hashes, and on x86-64 also sin-insns
-# sin-avx512-test.
+# paths are relative to the repository root. Targets: sin-all sin-test sin-hwy sin-hashes sin-xcheck,
+# and on x86-64 also sin-insns sin-avx512-test.
 
 SIN     := functions/sin
 SIN_B   := build/sin
@@ -64,6 +64,11 @@ ALL_TARGETS    += sin-all
 TEST_TARGETS   += sin-test
 HWY_TARGETS    += sin-hwy
 HASHES_TARGETS += sin-hashes
+# Highway sin on AArch64 NEON/SVE/SVE2 under QEMU vs x86-64 (run in the cross environment:
+# pixi run -e cross make sin-xcheck)
+sin-xcheck: $(SIN_GEN)
+	./functions/sin/tools/xcheck.sh sin $(PREFIX) $(PREFIX)
+XCHECK_TARGETS += sin-xcheck
 
 ifeq ($(ARCH),x86_64)
 sin-insns: $(SIN_B)/svml_sin_d_ha.o $(SIN_B)/svml_asm.o
@@ -76,4 +81,4 @@ INSNS_TARGETS  += sin-insns
 AVX512_TARGETS += sin-avx512-test
 endif
 
-.PHONY: sin-all sin-test sin-hwy sin-hashes sin-insns sin-avx512-test
+.PHONY: sin-all sin-test sin-hwy sin-hashes sin-xcheck sin-insns sin-avx512-test

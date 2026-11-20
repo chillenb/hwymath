@@ -38,7 +38,8 @@ As for sin (see [its README](../sin/README.md)): `svml_cos8_ha(__m512d)`, `svml_
 `svml_dcos_ha_cout_rare()`; the Highway version emulates every AVX-512 feature exactly (16-entry
 `vpermt2pd` lookups by permutes, `vpmullq` by `MulEven`, the gathers of the large path by scalar loads),
 so it is bit-identical to Intel's AVX-512 code on every FMA target; targets without FMA use `std::cos`.
-**Deviations: none** on FMA targets. Intel's libsvml (`__svml_cos8_ha_z0`) agrees with the translation on
+**Deviations: none** on FMA targets; `make cos-xcheck` confirms bit-identical results on AArch64
+NEON/SVE/SVE2 under QEMU (SVE at 128 to 2048 bits). Intel's libsvml (`__svml_cos8_ha_z0`) agrees with the translation on
 all test inputs except cos(+-inf) (+NaN instead of -NaN).
 
 ## Tests (`make cos-test`, `make cos-avx512-test RUN="$SDE -spr --"`)

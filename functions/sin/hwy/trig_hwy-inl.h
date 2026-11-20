@@ -89,6 +89,14 @@ HWY_INLINE hn::VFromD<D> LoadIndexed(D d, const hn::TFromD<D> *base, VU idx) {
     return hn::Load(d, buf);
 }
 
+// -(mul*x) - sub with one rounding, as vfnmsub*pd computes it. Highway's NegMulSub is Neg(MulAdd(mul, x,
+// sub)) on NEON, which gives -0 instead of +0 when mul*x + sub is exactly 0 (e.g. tan(-0) became +0);
+// -(mul*x) + (-sub) is the same operation in IEEE arithmetic on every target.
+template <class V>
+HWY_INLINE V NegMulSubExact(V mul, V x, V sub) {
+    return hn::NegMulAdd(mul, x, hn::Neg(sub));
+}
+
 // ---------------------------------------------------------------------------------------------------
 // Large-argument path
 

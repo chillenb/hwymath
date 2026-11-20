@@ -1,7 +1,7 @@
 # tan, double precision: bit-identical C/AVX-512 translation of svml_z0_tan_d_ha.s and a Google Highway
 # version (with an exact emulation of vrcp14pd). Shares the large-argument reduction and the test
 # templates with sin (functions/sin, functions/sin/trig_common.mk). Targets: tan-all tan-test tan-hwy
-# tan-hashes, and on x86-64 also tan-insns tan-avx512-test.
+# tan-hashes tan-xcheck, and on x86-64 also tan-insns tan-avx512-test.
 
 TAN     := functions/tan
 SIN     := functions/sin
@@ -65,6 +65,11 @@ ALL_TARGETS    += tan-all
 TEST_TARGETS   += tan-test
 HWY_TARGETS    += tan-hwy
 HASHES_TARGETS += tan-hashes
+# Highway tan on AArch64 NEON/SVE/SVE2 under QEMU vs x86-64 (run in the cross environment:
+# pixi run -e cross make tan-xcheck)
+tan-xcheck: $(TAN_GEN)
+	./functions/sin/tools/xcheck.sh tan $(PREFIX) $(PREFIX)
+XCHECK_TARGETS += tan-xcheck
 
 ifeq ($(ARCH),x86_64)
 # two parts: the reduction up to the branch to the large path, and the evaluation (.LBL_1_2)
@@ -80,4 +85,4 @@ INSNS_TARGETS  += tan-insns
 AVX512_TARGETS += tan-avx512-test
 endif
 
-.PHONY: tan-all tan-test tan-hwy tan-hashes tan-insns tan-avx512-test
+.PHONY: tan-all tan-test tan-hwy tan-hashes tan-xcheck tan-insns tan-avx512-test

@@ -104,7 +104,10 @@ without FMA. Emulations: as for sin (`{rn-sae}` arithmetic, `vpermt2pd` of the t
 masks, `vpmullq`, the gathers of the large path, `vcvtdq2pd`/32-bit integer operations of the large
 path by 64-bit integer operations and `ConvertTo`, all exact) plus `vrcp14pd` as above. **Deviations:
 none** on FMA targets. Bit-identity verified under SDE for AVX3_SPR, AVX3_DL, AVX3 and AVX2 against the
-C translation, and natively via the AVX2 hash.
+C translation, natively via the AVX2 hash, and by `make tan-xcheck` for NEON_WITHOUT_AES, NEON, SVE and
+SVE2 (QEMU, SVE at 128 to 2048 bits) against x86-64. The `vfnmsub` of P = tan R uses
+`NegMulAdd(a, b, Neg(c))`: Highway's `NegMulSub` is `Neg(MulAdd(a, b, c))` on NEON, which made
+tan(-0) = +0 there (found by CI on a Neoverse-N2).
 
 Cost: the exact `vrcp14pd` emulation is the expensive part on AVX2 (about 2.4 of the ~5 ns/value; the
 64-entry lookup needs 8 `vpermd` per vector of 4 doubles). With a hardware division instead, the

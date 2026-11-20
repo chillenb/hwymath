@@ -15,6 +15,7 @@ the same large-argument reduction; the code they share lives here.
 | `hwy/trig_hwy-inl.h`, `hwy/trig_tables.h` | **shared**: Highway table lookups (vpermt2pd emulation) and the large-argument path |
 | `tests/` | `test_rare.c`, `test_sin8.c`, `hwy_test.cc`, `extras.c`; **shared** templates `*_tmpl.h` and `inputs.h` |
 | `tools/gen_svml_constants.py` | constant generator for sin, cos and the reduction data |
+| `tools/xcheck.sh`, `tests/hwy_xcheck_tmpl.h` | **shared**: `make <f>-xcheck`, static per-target builds run under QEMU (AArch64 NEON/SVE/SVE2) vs x86-64 |
 | `trig_common.mk` | **shared** make variables (included by the sin, cos and tan `function.mk`) |
 | `sin_d.h` | declarations of the C translation |
 
@@ -96,7 +97,7 @@ Emulation of each AVX-512 feature (all exact):
 
 | AVX-512 feature | emulation |
 |---|---|
-| `{rn-sae}` arithmetic (add, sub, mul, FMA variants) | Highway's `Add`, `Sub`, `Mul`, `MulAdd`, `NegMulAdd`, `MulSub`, `NegMulSub` (round to nearest; compiled with `-ffp-contract=off`) |
+| `{rn-sae}` arithmetic (add, sub, mul, FMA variants) | Highway's `Add`, `Sub`, `Mul`, `MulAdd`, `NegMulAdd`, `MulSub` (round to nearest; compiled with `-ffp-contract=off`); `vfnmsub` as `NegMulAdd(a, b, Neg(c))` (`NegMulSubExact`), because Highway's `NegMulSub` is `Neg(MulAdd(..))` on NEON, which turns an exact +0 into -0 |
 | `vpermt2pd` (16-entry tables, index = low 4 bits) | `Lookup<16>` (`hwy/trig_hwy-inl.h`): `TableLookupLanes` if one vector holds the table, else a tree of `TwoTablesLookupLanes` and sign-bit selects (AVX-512: one `vpermt2pd`; AVX2: 2 x 2 `vpermd` + blends; 128-bit: 4 `TBL2`/shuffles + 3 selects); scalable vectors shorter than 16 lanes: `GatherIndex` (SVE) |
 | masked `vxorpd` (sin(-0)), `vpandnq` mask tricks, merges with `k1` | `IfThenElse`, `IfThenElseZero`, `IfThenZeroElse` |
 | `vcmppd` with unordered predicates (`NLE_UQ`, `NGT_UQ`) | `Not(Le(..))`, `Not(Gt(..))` (true for NaN, like the predicates) |
@@ -108,8 +109,10 @@ Vectors with a lane |x| > 2^24 (or inf/NaN) are recomputed by an out-of-line fun
 path; lanes with inf/NaN then call the C callout. **Deviations: none** on FMA targets. Bit-identity was
 verified under Intel SDE (`-spr`): AVX3_SPR, AVX3_DL, AVX3 and AVX2 against the C translation on
 2,035,562 inputs (`make sin-avx512-test`), and natively the AVX2 hash equals the hash of the
-C translation (`make sin-hashes`). AArch64 NEON/SVE are expected to agree (same IEEE operations; the
-callout gives the same NaN bits on both architectures) but were not run here.
+C translation (`make sin-hashes`). `make sin-xcheck` (cross environment) builds static binaries for
+AVX2, NEON_WITHOUT_AES, NEON, SVE and SVE2 and runs the AArch64 ones under QEMU (SVE at 128, 256, 512
+and 2048 bits): all give results bit-identical to x86-64, with no special-value mismatch (e.g. sin(-0)
+= -0).
 
 ## Tests (`make sin-test`, `make sin-avx512-test RUN="$SDE -spr --"`)
 

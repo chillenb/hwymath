@@ -89,7 +89,7 @@ HWY_INLINE hn::VFromD<D> TanCore(D d, hn::VFromD<D> x) {
     p = hn::MulAdd(rr, p, hn::Set(d, tan_vP3));
     p = hn::MulAdd(rr, p, hn::Set(d, tan_vP2));
     p = hn::MulAdd(rr, p, hn::Set(d, tan_vP1));
-    const auto q = hn::NegMulSub(rr, hn::Mul(p, r), rlo);  // -(R^3*poly) - Rlo
+    const auto q = ht::NegMulSubExact(rr, hn::Mul(p, r), rlo);  // -(R^3*poly) - Rlo (not hn::NegMulSub: NEON)
     const auto pt = hn::Sub(r, q);
     const auto plo = hn::Sub(hn::Sub(r, pt), q);
     const auto one = hn::Set(d, tan_vOne);
