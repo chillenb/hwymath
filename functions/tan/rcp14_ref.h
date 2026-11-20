@@ -16,8 +16,16 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+#define RCP14_CONST static constexpr
+#define RCP14_INLINE static constexpr inline
+#else
+#define RCP14_CONST static const __attribute__((unused))
+#define RCP14_INLINE static inline
+#endif
+
 /* RCP14_Coeff from recip14.c: b[i] (10 bits) and a[i] (18 bits) alternate */
-static const uint32_t rcp14_coeff[128] = {
+RCP14_CONST uint32_t rcp14_coeff[128] = {
     1009, 260119, 977, 256148, 949, 252296, 921, 248558, 893, 244929, 869, 241405, 843, 237981, 821, 234652,
     797,  231416, 777, 228266, 755, 225202, 735, 222220, 717, 219314, 699, 216485, 681, 213727, 663, 211038,
     647,  208417, 631, 205859, 617, 203364, 601, 200929, 587, 198551, 573, 196229, 561, 193960, 547, 191743,
@@ -29,7 +37,7 @@ static const uint32_t rcp14_coeff[128] = {
 };
 
 /* 17-bit significand q (2^16 <= q < 2^17) of rcp14(1.f) for a fraction f (52 bits, f != 0) */
-static inline uint64_t
+RCP14_INLINE uint64_t
 rcp14_sig17(uint64_t f)
 {
     const uint32_t i = (uint32_t)(f >> 46), l = (uint32_t)(f >> 36) & 1023;

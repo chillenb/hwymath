@@ -45,7 +45,7 @@ $(SIN_B)/test_%: $(SIN)/tests/test_%.c $(TRIG_TEST_DEPS) $(SIN_H) $(SIN_OBJS)
 # --- Highway version ---
 $(SIN_B)/hwy_sin.o: $(SIN)/hwy/hwy_sin.cc $(SIN_GEN) $(TRIG_HWY_DEPS) | $(SIN_B)
 	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
-$(SIN_B)/extras.o: $(SIN)/tests/extras.c $(SIN)/tests/extras_tmpl.h $(SIN_H) | $(SIN_B)
+$(SIN_B)/extras.o: $(SIN)/tests/extras.c $(SIN)/tests/extras_tmpl.h $(SIN)/tests/extras_tmpl_decl.h $(SIN_H) | $(SIN_B)
 	$(CC) $(CFLAGS) $(INC) $(SLEEF_DEF) $(INTEL_DEF) -c $< -o $@
 $(SIN_B)/hwy_test: $(SIN)/tests/hwy_test.cc $(TRIG_HWYTEST_DEPS) $(SIN_H) $(SIN_OBJS) $(SIN_B)/hwy_sin.o $(SIN_B)/extras.o
 	$(CXX) $(CXXFLAGS) $(INC) $< $(SIN_B)/hwy_sin.o $(SIN_OBJS) $(SIN_B)/extras.o $(LIBPATH) -lhwy $(SLEEF_LIB) \

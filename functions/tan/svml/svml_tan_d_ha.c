@@ -22,7 +22,7 @@
  *   Q = Num*rcp, then one correction step of the quotient: Q - rcp*((Q*D - Num) - Q*Dlo - Nlo).
  * Lanes with x = +-inf or NaN are then recomputed by the scalar callout (tan(+-inf) = NaN, invalid).
  *
- * vrcp14pd's result is specified by Intel's reference implementation (recip14.c, see tests/rcp14_ref.h);
+ * vrcp14pd's result is specified by Intel's reference implementation (recip14.c, see ../rcp14_ref.h);
  * the final result depends on its exact bits.
  *
  * Build: any x86-64 C compiler with AVX-512F/DQ intrinsics (GCC, Clang, ICX). Do not use -ffast-math.

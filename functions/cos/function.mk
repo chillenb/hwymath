@@ -44,7 +44,7 @@ $(COS_B)/test_%: $(COS)/tests/test_%.c $(TRIG_TEST_DEPS) $(COS_H) $(COS_OBJS)
 # --- Highway version ---
 $(COS_B)/hwy_cos.o: $(COS)/hwy/hwy_cos.cc $(COS_GEN) $(TRIG_HWY_DEPS) | $(COS_B)
 	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
-$(COS_B)/extras.o: $(COS)/tests/extras.c $(SIN)/tests/extras_tmpl.h $(COS_H) | $(COS_B)
+$(COS_B)/extras.o: $(COS)/tests/extras.c $(SIN)/tests/extras_tmpl.h $(SIN)/tests/extras_tmpl_decl.h $(COS_H) | $(COS_B)
 	$(CC) $(CFLAGS) $(INC) $(SLEEF_DEF) $(INTEL_DEF) -c $< -o $@
 $(COS_B)/hwy_test: $(COS)/tests/hwy_test.cc $(TRIG_HWYTEST_DEPS) $(COS_H) $(COS_OBJS) $(COS_B)/hwy_cos.o $(COS_B)/extras.o
 	$(CXX) $(CXXFLAGS) $(INC) $< $(COS_B)/hwy_cos.o $(COS_OBJS) $(COS_B)/extras.o $(LIBPATH) -lhwy $(SLEEF_LIB) \
