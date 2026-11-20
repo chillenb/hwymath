@@ -69,9 +69,12 @@ static void print_row(const char *name, const char *alg, size_t lanes, const acc
            s.over1, s.mismatched_special, t);
 }
 
-static size_t count_diff(const std::vector<double> &a, const std::vector<double> &b) {
+// number of results that differ bit-wise; prints the first few
+static size_t count_diff(const std::vector<double> &a, const std::vector<double> &b, const std::vector<double> *x = nullptr) {
     size_t n = 0;
-    for (size_t i = 0; i < a.size(); i++) n += dbits(a[i]) != dbits(b[i]);
+    for (size_t i = 0; i < a.size(); i++) {
+        if (dbits(a[i]) != dbits(b[i]) && n++ < 3 && x) printf("    x = %a: %a vs %a\n", (*x)[i], a[i], b[i]);
+    }
     return n;
 }
 
@@ -146,7 +149,7 @@ int main(int argc, char **argv) {
         if (!have_hash) { port_hash = h; have_hash = true; }
         else if (h != port_hash) { printf("  FAIL: results differ from the first FMA target\n"); failures++; }
         if (have_avx512) {
-            const size_t nd = count_diff(y, ref_port);
+            const size_t nd = count_diff(y, ref_port, &x);
             printf("  bit-identical to svml_asin8_ha_portable: %s (%zu differences)\n", nd ? "NO" : "yes", nd);
             if (nd) failures++;
         }
@@ -158,7 +161,7 @@ int main(int argc, char **argv) {
             if (hf) fprintf(hf, "%s asin %s native %zu %016llx\n", kArch, tname, y.size(),
                             (unsigned long long)acc_hash(y.data(), y.size()));
             if (have_avx512) {
-                const size_t nd = count_diff(y, ref_intel);
+                const size_t nd = count_diff(y, ref_intel, &x);
                 printf("  native: bit-identical to svml_asin8_ha (Intel's code): %s (%zu differences)\n", nd ? "NO" : "yes", nd);
                 if (nd) failures++;
             }

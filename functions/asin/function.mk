@@ -7,15 +7,15 @@ ASIN     := functions/asin
 ASIN_B   := build/asin
 ASIN_ASM := $(SVML_ASM)/svml_z0_asin_d_ha.s
 ASIN_H   := $(ASIN)/asin_d.h
-ASM2C    := functions/asin/tools/asm2c.py
-ASM_MODEL_H := functions/asin/svml/asm_model.h
+ASIN_ASM2C  := functions/asin/tools/asm2c.py
+ASIN_MODEL_H := functions/asin/svml/asm_model.h
 
 # --- generated sources (committed; regenerated when their generators change) ---
 ASIN_GEN := $(ASIN)/svml/svml_asin_d_ha_constants.inc $(ASIN)/svml/svml_dasin_ha_cout_rare.inc
 $(ASIN)/svml/svml_asin_d_ha_constants.inc: $(ASIN)/tools/gen_svml_constants.py common/tools/extract_tables.py $(ASIN_ASM)
 	python3 -I $< $(ASIN_ASM) > $@
-$(ASIN)/svml/svml_dasin_ha_cout_rare.inc: $(ASM2C) common/tools/extract_tables.py $(ASIN_ASM)
-	python3 -I $(ASM2C) $(ASIN_ASM) __svml_dasin_ha_cout_rare_internal svml_dasin_ha_cout_rare 2 > $@
+$(ASIN)/svml/svml_dasin_ha_cout_rare.inc: $(ASIN_ASM2C) common/tools/extract_tables.py $(ASIN_ASM)
+	python3 -I $(ASIN_ASM2C) $(ASIN_ASM) __svml_dasin_ha_cout_rare_internal svml_dasin_ha_cout_rare 2 > $@
 
 # --- what gets built on this architecture ---
 ASIN_OBJS := $(ASIN_B)/svml_asin_d_ha.o
@@ -30,8 +30,8 @@ ASIN_PROGS := $(ASIN_TESTS) $(ASIN_B)/hwy_test
 $(ASIN_B):
 	mkdir -p $@
 
-$(ASIN_B)/svml_asin_d_ha.o: $(ASIN)/svml/svml_asin_d_ha.c $(ASIN_H) $(ASM_MODEL_H) $(ASIN_GEN) | $(ASIN_B)
-	$(CC) $(CFLAGS) -I$(dir $(ASM_MODEL_H)) -c $< -o $@
+$(ASIN_B)/svml_asin_d_ha.o: $(ASIN)/svml/svml_asin_d_ha.c $(ASIN_H) $(ASIN_MODEL_H) $(ASIN_GEN) | $(ASIN_B)
+	$(CC) $(CFLAGS) -I$(dir $(ASIN_MODEL_H)) -c $< -o $@
 
 # Intel's assembly, with the scalar callout made global so that it can be tested directly
 $(ASIN_B)/svml_asm.o: $(ASIN_ASM) | $(ASIN_B)
