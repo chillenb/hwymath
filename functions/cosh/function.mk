@@ -1,7 +1,7 @@
 # cosh, double precision: bit-identical C/AVX-512 translation of svml_z0_cosh_d_ha.s and a Google
 # Highway version of the same algorithm. Included by the top-level Makefile; paths are relative to the
-# repository root. Targets: cosh-all cosh-test cosh-hwy cosh-hashes, and on x86-64 also cosh-insns
-# cosh-avx512-test.
+# repository root. Targets: cosh-all cosh-test cosh-hwy cosh-hashes cosh-xcheck (AArch64 under QEMU, in the
+# pixi "cross" environment), and on x86-64 also cosh-insns cosh-avx512-test.
 
 COSH     := functions/cosh
 COSH_B   := build/cosh
@@ -52,10 +52,13 @@ cosh-hwy: $(COSH_B)/hwy_test
 	./$(COSH_B)/hwy_test
 cosh-hashes: $(COSH_B)/hwy_test
 	$(RUN) ./$(COSH_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
+cosh-xcheck: $(COSH_GEN)
+	./$(COSH)/tools/xcheck.sh $(PREFIX) $(PREFIX)
 ALL_TARGETS    += cosh-all
 TEST_TARGETS   += cosh-test
 HWY_TARGETS    += cosh-hwy
 HASHES_TARGETS += cosh-hashes
+XCHECK_TARGETS += cosh-xcheck
 
 ifeq ($(ARCH),x86_64)
 cosh-insns: $(COSH_B)/svml_cosh_d_ha.o $(COSH_B)/svml_asm.o
@@ -68,4 +71,4 @@ INSNS_TARGETS  += cosh-insns
 AVX512_TARGETS += cosh-avx512-test
 endif
 
-.PHONY: cosh-all cosh-test cosh-hwy cosh-hashes cosh-insns cosh-avx512-test
+.PHONY: cosh-all cosh-test cosh-hwy cosh-hashes cosh-xcheck cosh-insns cosh-avx512-test

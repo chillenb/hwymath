@@ -17,10 +17,12 @@ extern "C" int svml_dcosh_ha_cout_rare(const double *px, double *pr);
 
 #include "functions/cosh/hwy/hwy_cosh_constants.h"
 
-// Table lookups on targets with 2 or 4 lanes: 1 = by rows (one load per lane from the interleaved table,
-// then a transpose), 0 = permute/blend tree (TwoTablesLookupLanes + IfThenElse). See README.md.
+// Table lookups on targets with 2 or 4 lanes: 2 = by rows from the interleaved table (4 lanes: half-row
+// loads combined into vectors, then interleaved; 2 lanes: row loads, then interleaved), 1 = the same with
+// full-row loads and a 4x4 transpose on 4 lanes, 0 = permute/blend tree (TwoTablesLookupLanes +
+// IfThenElse). Measurements: README.md.
 #ifndef HWYCOSH_ROWS
-#define HWYCOSH_ROWS 1
+#define HWYCOSH_ROWS 2
 #endif
 
 #undef HWY_TARGET_INCLUDE
@@ -85,10 +87,24 @@ HWY_INLINE void Lookup(D d, VI j, V &tph, V &tpl, V &tmh) {
     const size_t N = hn::Lanes(d);
 #if HWYCOSH_ROWS
     // By rows: the {TpH, TpL, TmH, 0} row of each lane is loaded from the interleaved table and the
-    // rows are transposed (4 lanes: 4 loads + 6 shuffles; 2 lanes: 4 loads + 3 zips).
+    // rows are transposed (4 lanes: 6 half-row loads + 3 inserts + 3 unpacks with HWYCOSH_ROWS 2, or 4
+    // loads + 6 shuffles with 1; 2 lanes: 4 loads + 3 zips).
     if (N == 4 && HWY_ARCH_X86) {  // 128-bit-block semantics of InterleaveLower/Upper: AVX2
         alignas(32) int64_t idx[4];
         hn::Store(j, hn::RebindToSigned<D>(), idx);
+#if HWYCOSH_ROWS == 2
+        const hn::Half<D> dh;
+        const double *p0 = kRows.v + 4 * idx[0], *p1 = kRows.v + 4 * idx[1];
+        const double *p2 = kRows.v + 4 * idx[2], *p3 = kRows.v + 4 * idx[3];
+        const auto a = hn::Combine(d, hn::Load(dh, p2), hn::Load(dh, p0));  // r0[0] r0[1] | r2[0] r2[1]
+        const auto b = hn::Combine(d, hn::Load(dh, p3), hn::Load(dh, p1));
+        const auto e = hn::Combine(d, hn::Load(dh, p2 + 2), hn::Load(dh, p0 + 2));
+        const auto f = hn::Combine(d, hn::Load(dh, p3 + 2), hn::Load(dh, p1 + 2));
+        tph = hn::InterleaveLower(d, a, b);
+        tpl = hn::InterleaveUpper(d, a, b);
+        tmh = hn::InterleaveLower(d, e, f);
+        return;
+#endif
         const auto r0 = hn::Load(d, kRows.v + 4 * idx[0]);
         const auto r1 = hn::Load(d, kRows.v + 4 * idx[1]);
         const auto r2 = hn::Load(d, kRows.v + 4 * idx[2]);

@@ -1,7 +1,7 @@
 # sinh, double precision: bit-identical C/AVX-512 translation of svml_z0_sinh_d_ha.s and a Google
 # Highway version of the same algorithm. Included by the top-level Makefile; paths are relative to the
-# repository root. Targets: sinh-all sinh-test sinh-hwy sinh-hashes, and on x86-64 also sinh-insns
-# sinh-avx512-test.
+# repository root. Targets: sinh-all sinh-test sinh-hwy sinh-hashes sinh-xcheck (AArch64 under QEMU, in the
+# pixi "cross" environment), and on x86-64 also sinh-insns sinh-avx512-test.
 
 SINH     := functions/sinh
 SINH_B   := build/sinh
@@ -52,10 +52,13 @@ sinh-hwy: $(SINH_B)/hwy_test
 	./$(SINH_B)/hwy_test
 sinh-hashes: $(SINH_B)/hwy_test
 	$(RUN) ./$(SINH_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
+sinh-xcheck: $(SINH_GEN)
+	./$(SINH)/tools/xcheck.sh $(PREFIX) $(PREFIX)
 ALL_TARGETS    += sinh-all
 TEST_TARGETS   += sinh-test
 HWY_TARGETS    += sinh-hwy
 HASHES_TARGETS += sinh-hashes
+XCHECK_TARGETS += sinh-xcheck
 
 ifeq ($(ARCH),x86_64)
 sinh-insns: $(SINH_B)/svml_sinh_d_ha.o $(SINH_B)/svml_asm.o
@@ -68,4 +71,4 @@ INSNS_TARGETS  += sinh-insns
 AVX512_TARGETS += sinh-avx512-test
 endif
 
-.PHONY: sinh-all sinh-test sinh-hwy sinh-hashes sinh-insns sinh-avx512-test
+.PHONY: sinh-all sinh-test sinh-hwy sinh-hashes sinh-xcheck sinh-insns sinh-avx512-test

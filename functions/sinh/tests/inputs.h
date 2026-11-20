@@ -53,10 +53,10 @@ make_inputs(double *buf, size_t n_random)
     for (size_t i = 0; i < n_random / 4; i++) {  /* uniform over [-25, 25] */
         buf[k++] = ((double)(rng() >> 11) * 0x1p-53) * 50.0 - 25.0;
     }
-    for (size_t i = 0; i < n_random / 4; i++) {  /* +-2^u, u uniform in [-60, 4] */
+    for (size_t i = 0; i < n_random / 4; i++) {  /* +-m*2^e, e uniform in [-60, 3], m uniform in [1, 2) */
         const uint64_t b = rng();
-        const double u = ((double)(b >> 11) * 0x1p-53) * 64.0 - 60.0;
-        buf[k++] = (b & 1 ? -1.0 : 1.0) * exp2(u);
+        const uint64_t e = (uint64_t)(1023 - 60) + (b >> 54) % 64;
+        buf[k++] = bitsd((b << 63) | (e << 52) | (rng() & 0x000fffffffffffffULL));
     }
     for (size_t i = 0; i < n_random - 3 * (n_random / 4); i++) {  /* arbitrary bit patterns */
         buf[k++] = bitsd(rng());
