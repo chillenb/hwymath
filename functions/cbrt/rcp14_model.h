@@ -13,7 +13,11 @@
 #define CBRT_RCP14_MODEL_H
 
 /* |m| >= cbrt_rcp14_threshold[i] -> k <= 15 - i (i = 0..7) */
+#ifdef __cplusplus
+static constexpr double cbrt_rcp14_threshold[8] = {
+#else
 static const double cbrt_rcp14_threshold[8] = {
+#endif
     0x1.0842p+0,  /* 16 -> 15 (32/31 = 0x1.08421084...) */
     0x1.1a7dp+0,  /* 15 -> 14 (32/29 = 0x1.1a7b9611...) */
     0x1.2f69p+0,  /* 14 -> 13 (32/27 = 0x1.2f684bda...) */
