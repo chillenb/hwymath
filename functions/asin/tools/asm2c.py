@@ -258,7 +258,8 @@ print('    uint64_t rsp = (uint64_t)(uintptr_t)(stack + 192);  /* the routine us
 regs = ['rdi', 'rsi', 'rdx']
 for i in range(nargs):
     print(f'    {regs[i]} = (uint64_t)(uintptr_t)a{i};')
-print('    (void)rbx; (void)rbp; (void)r12; (void)r13; (void)r14; (void)r15; (void)rsp;')
+print('    (void)rax; (void)rbx; (void)rcx; (void)rdx; (void)rsi; (void)rdi; (void)rbp; (void)r8; (void)r9; (void)r10; '
+      '(void)r11; (void)r12; (void)r13; (void)r14; (void)r15; (void)rsp;')
 used = {clab(l) for l in labels_used}
 for item in lines_out:
     if item[0] == 'label':

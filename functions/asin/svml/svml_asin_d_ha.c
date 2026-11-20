@@ -70,7 +70,9 @@ AVX512 static inline __m512d
 rsqrt_portable(__m512d y)
 {
     const __m512d r = _mm512_div_round_pd(V1(1.0), _mm512_sqrt_round_pd(y, RN), RN);
-    return _mm512_castsi512_pd(_mm512_and_si512(_mm512_castpd_si512(r), _mm512_set1_epi64((long long)0xfffffff000000000ULL)));
+    const __m512d t = _mm512_castsi512_pd(_mm512_and_si512(_mm512_castpd_si512(r), _mm512_set1_epi64((long long)0xfffffff000000000ULL)));
+    /* NaN: the quieted input, as from the instruction (keeps the NaN payloads of the results unchanged) */
+    return _mm512_mask_add_round_pd(t, _mm512_cmp_pd_mask(y, y, _CMP_UNORD_Q), y, y, RN);
 }
 
 AVX512 static inline __attribute__((always_inline)) __m512d

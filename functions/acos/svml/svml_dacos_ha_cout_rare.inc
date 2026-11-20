@@ -163,7 +163,7 @@ svml_dacos_ha_cout_rare(const double *a0, double *a1)
     uint64_t rsp = (uint64_t)(uintptr_t)(stack + 192);  /* the routine uses the red zone below %rsp */
     rdi = (uint64_t)(uintptr_t)a0;
     rsi = (uint64_t)(uintptr_t)a1;
-    (void)rbx; (void)rbp; (void)r12; (void)r13; (void)r14; (void)r15; (void)rsp;
+    (void)rax; (void)rbx; (void)rcx; (void)rdx; (void)rsi; (void)rdi; (void)rbp; (void)r8; (void)r9; (void)r10; (void)r11; (void)r12; (void)r13; (void)r14; (void)r15; (void)rsp;
     { uint32_t t_ = 0; rax = (uint32_t)(t_); fk = FK_INT; fw = 32; fa = (uint64_t)(t_); fb = 0; }    /* xorl %eax, %eax */
     rdx = (uint32_t)(ld16((rdi + 6)));                                                               /* movzwl 6(%rdi), %edx */
     { uint32_t t_ = (uint32_t)(((uint32_t)rdx) & ((uint32_t)(32752))); rdx = (uint32_t)(t_); fk = FK_INT; fw = 32; fa = (uint64_t)(t_); fb = 0; } /* andl $32752, %edx */

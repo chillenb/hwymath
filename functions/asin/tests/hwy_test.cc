@@ -43,7 +43,7 @@ static const char *kArch = "aarch64";
 static const char *kArch = "other";
 #endif
 
-static const double kMaxUlp = 0.9;   // documented bound of the FMA targets (measured: see Performance.md)
+static const double kMaxUlp = 0.85;  // documented bound of the FMA targets (measured: see Performance.md)
 
 static std::vector<long double> g_ref;  // asinl(x), computed once
 
