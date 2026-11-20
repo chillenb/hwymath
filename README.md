@@ -29,8 +29,8 @@ CI (`.github/workflows/ci.yml`) runs the tests and benchmarks on GitHub's x86-64
 AVX-512 natively when the runner has it (otherwise the AVX-512 correctness tests run under Intel SDE),
 and checks that the Highway exp gives bit-identical results on all of them.
 
-Benchmark numbers below are from a Coffee Lake i5-9500 (AVX2, no AVX-512); note that the pixi toolchain
-links against a glibc 2.28 sysroot, so scalar `exp` binds to the older, slower `exp@GLIBC_2.2.5`.
+Accuracy and speed on an Intel Xeon 6975P-C (AVX-512), a Neoverse-N2 (SVE2) and a Core i5-9500 (AVX2),
+compared with Intel SVML, SLEEF, glibc and Highway's own `Exp`: see [Performance.md](Performance.md).
 
 ## The SVML translation and AVX2 variants
 
@@ -60,7 +60,7 @@ rounding mode, so its results should be bit-identical to Intel's.
   `tools/fit_exp_k3.py K DEG hp`, and an error-free reconstruction of Th + Th*r (s = fma(Th, r, Th),
   e = fma(Th, r, -(s - Th))), so only the final addition rounds significantly. Default 4-entry
   table (one `vpermps` per lookup, no blends) with Q up to r^9; `make HP_K=3 HP_DEG=8` builds the
-  8-entry version (0.5068 ulp max, 0.0079 % not correctly rounded, 1.17 ns/value).
+  8-entry version (more accurate, somewhat slower; see Performance.md).
 - In both non-identical variants the rarely used scalar callout is an out-of-line `cold` function, so
   the hot path needs no stack frame (worth ~10 % per call).
 - `svml_dexp_ha_cout_rare()`: the scalar routine for special lanes (overflow, underflow/denormal
@@ -84,34 +84,10 @@ random values (uniform in [-750, 750] and random bit patterns). The assembly is 
 Differences from the assembly that do not affect results: the bitwise ANDs use `vpandq` (AVX-512F)
 instead of `vandpd` (AVX-512DQ), and the compiler chooses registers and FMA forms (132/213/231).
 
-## AVX2 port vs other implementations (i5-9500 Coffee Lake)
+## Comparisons
 
-`make compare` (20,002,324 inputs; errors vs `expl()` over 14,745,168 finite results) and `make bench`
-(4096 random doubles in [-700, 700], cache-resident):
-
-| Implementation | max error | not correctly rounded | errors > 1 ulp | ns/value |
-|---|---|---|---|---|
-| this port (AVX2, HA) | 0.722 ulp | 3.05 % | 0 | 1.94 (1.69 via the array function) |
-| fast variant, K=3 (default) | 0.635 ulp | 1.09 % | 0 | 1.10 (0.89 via the array function) |
-| fast variant, K=2, degree 8 | 0.789 ulp | 2.04 % | 0 | (0.78 via the array function, before the cold-callout change) |
-| **hp variant, K=2, Q to r^9 (default)** | **0.511 ulp** | **0.055 %** | 0 | 1.25 (1.04 via the array function) |
-| Intel `__svml_exp4_ha_l9` (libsvml, AVX2 HA) | 0.521 ulp | 0.32 % | 0 | 1.03 |
-| Intel `__svml_exp4_l9` (libsvml, AVX2 LA) | 3.008 ulp | 28.1 % | 1,104,775 | 0.84 |
-| glibc `exp` (scalar) | 0.507 ulp | 0.036 % | 0 | 4.98 |
-| glibc libmvec `_ZGVdN4v_exp` (AVX2) | 3.008 ulp | 28.1 % | 1,104,775 | 2.32 |
-| SLEEF 3.9.0 `Sleef_expd4_u10avx2` | 0.877 ulp | 3.91 % | 0 | 1.50 |
-
-- Intel's current AVX2 HA exp is a *different, more accurate* algorithm than the open-source AVX-512 one:
-  the port agrees bit for bit on 97.8 % of inputs and differs by one ulp elsewhere.
-- glibc's libmvec AVX2 exp has exactly the error profile of Intel's AVX2 LA (it was contributed by Intel).
-- The hp variant is more accurate than Intel's AVX2 HA (max 0.511 vs 0.521 ulp; not correctly rounded
-  for 0.055 % vs 0.32 % of inputs) at the same throughput in array form; called per vector it is ~20 %
-  slower (1.25 vs 1.03 ns/value).
-- The fast and hp variants agree exactly with the HA port on all 5,502,730 special inputs/results (NaN, ±inf,
-  overflow, zero and denormal results), which share the scalar routine.
-- The remaining speed gap of the bit-identical port to Intel HA is mostly the cost of staying bit-identical to the AVX-512
-  algorithm: the 16-entry table lookups and the round-toward-zero emulation. The first version used
-  gathers and ran at 4.26 ns/value because of the GDS microcode mitigation on this CPU.
+`make compare` and `make bench` (x86-64) and `make hwy` measure these variants against Intel's libsvml,
+glibc (scalar and libmvec) and SLEEF; results are in [Performance.md](Performance.md).
 
 `libsvml.so` comes from conda-forge's `intel-cmplr-lib-rt` (closed source, redistributable; used for
 comparison only). SLEEF and the Intel runtime are optional for the Makefile: without them they are left
@@ -128,21 +104,10 @@ out of the comparisons.
 - targets without FMA (SSE2/SSSE3/SSE4): `std::exp`, because the error-free steps would not be exact.
   (Highway's own `Exp` would be ~2x faster there, at ~1 ulp.)
 
-Results (`make hwy` on the i5-9500, `make xcheck` for the cross-architecture check):
-
-| target | algorithm | max error | not corr. rounded | ns/value (array) | vs C hp variant |
-|---|---|---|---|---|---|
-| AVX2 | hp, 4-entry | 0.511 ulp | 0.055 % | 1.07 (C: 1.03) | bit-identical (20,002,324 inputs) |
-| SSE4 / SSSE3 | std::exp | 0.507 ulp | 0.036 % | 4.75 | — |
-| AArch64 NEON (QEMU) | hp, 4-entry | 0.510 ulp* | 0.068 %* | — | bit-identical to x86-64 AVX2 |
-| AArch64 SVE, SVE2 at 128/256/512/2048 bits (QEMU) | hp, 4-entry | 0.510 ulp* | 0.068 %* | — | bit-identical to x86-64 AVX2 |
-| AVX-512 (`AVX3*`) | hp, 8-entry | not run | | | compiled only (no AVX-512 here; QEMU cannot emulate it) |
-| Highway `hwy/contrib/math` `Exp` (AVX2) | | 1.013 ulp | 6.09 % | 1.35 | |
-
-\* 2,002,324 inputs, reference `expl` in binary128 (AArch64 `long double`). The same results measured with
-x86's 64-bit-mantissa `long double` give 0.5098 ulp / 0.054 %: the x87 reference misjudges some results
-that lie almost exactly halfway between two doubles, so the x86 "not correctly rounded" percentages are a
-little optimistic.
+Its results are bit-identical on x86-64 AVX2 and AArch64 NEON/SVE/SVE2 (checked on real hardware in CI,
+and locally under QEMU at SVE vector lengths of 128 to 2048 bits with `make xcheck`); the AVX-512
+targets, which use the 8-entry table, agree with each other. Accuracy and speed per target:
+[Performance.md](Performance.md).
 
 Notes:
 - Highway's static AVX2 target also requires AES/PCLMUL, so `-march=x86-64-v3` selects SSSE3 for static
