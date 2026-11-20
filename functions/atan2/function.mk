@@ -43,7 +43,7 @@ $(ATAN2_B)/test_%: $(ATAN2)/tests/test_%.c $(ATAN2_TEST_DEPS)
 	$(CC) $(CFLAGS) $(INC) $< $(ATAN2_OBJS) -lm -o $@
 
 # --- Highway version ---
-$(ATAN2_B)/hwy_atan2.o: $(ATAN2)/hwy/hwy_atan2.cc $(ATAN2)/hwy/hwy_atan2_constants.h $(ATAN2_GEN) | $(ATAN2_B)
+$(ATAN2_B)/hwy_atan2.o: $(ATAN2)/hwy/hwy_atan2.cc $(ATAN2)/hwy/hwy_atan2_constants.h $(ATAN2_GEN) functions/asin/hwy/approx14-inl.h functions/asin/hwy/approx14_tables.h | $(ATAN2_B)
 	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
 $(ATAN2_B)/extras.o: $(ATAN2)/tests/extras.c $(ATAN2)/tests/extras.h | $(ATAN2_B)
 	$(CC) $(CFLAGS) $(INC) $(SLEEF_DEF) $(INTEL_DEF) -c $< -o $@
@@ -54,8 +54,9 @@ $(ATAN2_B)/hwy_test: $(ATAN2)/tests/hwy_test.cc $(ATAN2)/tests/extras.h common/i
 
 # --- entry points ---
 atan2-all: $(ATAN2_PROGS)
-atan2-test: $(ATAN2_TESTS) $(ATAN2_B)/hwy_test
+atan2-test: $(ATAN2_TESTS) build/asin/test_approx14 $(ATAN2_B)/hwy_test
 	@set -e; for t in $(ATAN2_TESTS); do $(RUN) ./$$t || [ $$? -eq 77 ]; done
+	$(RUN) ./build/asin/test_approx14
 	$(RUN) ./$(ATAN2_B)/hwy_test 2000000 --no-bench
 atan2-hwy: $(ATAN2_B)/hwy_test
 	./$(ATAN2_B)/hwy_test
@@ -74,7 +75,8 @@ ifeq ($(ARCH),x86_64)
 atan2-insns: $(ATAN2_B)/svml_atan2_d_ha.o $(ATAN2_B)/svml_asm.o
 	common/tools/compare_insns.sh $(ATAN2_B)/svml_atan2_d_ha.o svml_atan28_ha $(ATAN2_B)/svml_asm.o __svml_atan28_ha
 # AVX-512: bit-exactness of the translation vs Intel's assembly, Highway AVX-512 targets
-atan2-avx512-test: $(ATAN2_B)/test_atan28 $(ATAN2_B)/hwy_test
+atan2-avx512-test: $(ATAN2_B)/test_atan28 $(ATAN2_B)/hwy_test build/asin/test_approx14
+	$(RUN) ./build/asin/test_approx14
 	$(RUN) ./$(ATAN2_B)/test_atan28 2000000 || [ $$? -eq 77 ]
 	$(RUN) ./$(ATAN2_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 INSNS_TARGETS  += atan2-insns

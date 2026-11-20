@@ -31,9 +31,8 @@
  *
  * vrcp14pd results are implementation-defined (Intel's are a function of the top 16 mantissa bits,
  * with at most 16 significant bits) and the result depends on them (through the rounding of r2 and R).
- * svml_atan28_ha_portable() replaces the instruction by the deterministic approximation used by the
- * Highway version, trunc16(RN(1/b)) (16 significant bits, relative error < 2^-15.9), as a reference
- * for the Highway targets.
+ * Intel publishes a bit-exact reference
+ * (RECIP14.c), which the Highway version emulates (functions/asin/hwy/approx14-inl.h).
  *
  * Build: any x86-64 C compiler with AVX-512F intrinsics (GCC, Clang, ICX). Do not use -ffast-math.
  * Only the vector functions need AVX-512F at run time; the scalar routines are plain C.
@@ -89,18 +88,8 @@ svml_atan2_ha_zero_args(double y, double x)
 /* compiler barrier without instructions: keeps the instruction mix comparable with the assembly */
 #define OPAQUE(v) __asm__("" : "+v"(v))
 
-/* trunc16(RN(1/b)): the portable replacement of vrcp14pd (see above) */
-AVX512 static inline __m512d
-rcp_portable(__m512d b)
-{
-    const __m512d r = _mm512_div_round_pd(V1(1.0), b, RN);
-    const __m512d t = PD(_mm512_and_si512(SI(r), _mm512_set1_epi64((long long)0xfffffff000000000ULL)));
-    /* NaN in, quieted NaN out (the truncation would clear payload bits); NaN lanes are special anyway */
-    return _mm512_mask_add_round_pd(t, _mm512_cmp_pd_mask(b, b, _CMP_UNORD_Q), b, b, RN);
-}
-
 AVX512 static inline __attribute__((always_inline)) __m512d
-atan2_8(__m512d y, __m512d x, int portable)
+atan2_8(__m512d y, __m512d x)
 {
     const __m512i absmask = _mm512_set1_epi64((long long)vAbsMaskBits);
     __m512d ax = PD(_mm512_and_si512(SI(x), absmask));
@@ -146,7 +135,7 @@ atan2_8(__m512d y, __m512d x, int portable)
     b = _mm512_mask3_fmadd_round_pd(d, ay, b, k5, RN);
 
     /* 1/b ~ r2, by two refinements of r0 */
-    __m512d r = portable ? rcp_portable(b) : _mm512_rcp14_pd(b);
+    __m512d r = _mm512_rcp14_pd(b);
     const __m512d e = _mm512_fnmadd_round_pd(b, r, V1(vOne), RN);
     r = _mm512_fmadd_round_pd(e, r, r, RN);
     const __m512d e1 = _mm512_fnmadd_round_pd(b, r, V1(vOne), RN);
@@ -241,13 +230,7 @@ atan2_8(__m512d y, __m512d x, int portable)
 AVX512 __m512d
 svml_atan28_ha(__m512d y, __m512d x)
 {
-    return atan2_8(y, x, 0);
-}
-
-AVX512 __m512d
-svml_atan28_ha_portable(__m512d y, __m512d x)
-{
-    return atan2_8(y, x, 1);
+    return atan2_8(y, x);
 }
 
 #define ARRAY(NAME, KERNEL)                                                                         \
@@ -263,6 +246,5 @@ svml_atan28_ha_portable(__m512d y, __m512d x)
         }                                                                                           \
     }
 ARRAY(svml_atan2_ha_array, svml_atan28_ha)
-ARRAY(svml_atan2_ha_portable_array, svml_atan28_ha_portable)
 
 #endif /* __x86_64__ */

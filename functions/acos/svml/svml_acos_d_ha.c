@@ -23,9 +23,8 @@
  *
  * vrsqrt14pd results are implementation-defined (Intel's are a function of the top 15 mantissa bits and
  * the exponent parity, with at most 16 significant bits); the result of the algorithm depends on them
- * (|x| >= 0.5 only). svml_acos8_ha_portable() replaces the instruction by the deterministic
- * approximation used by the Highway version, trunc16(RN(1/RN(sqrt(Y)))) (16 significant bits, relative
- * error < 2^-15.9), as a reference for the Highway targets.
+ * (|x| >= 0.5 only). Intel publishes a bit-exact reference
+ * (RECIP14.c), which the Highway version emulates (functions/asin/hwy/approx14-inl.h).
  *
  * Build: any x86-64 C compiler with AVX-512F intrinsics (GCC, Clang, ICX). Do not use -ffast-math.
  * Only the vector functions need AVX-512F at run time; the scalar routine is plain C.
@@ -63,18 +62,8 @@
 /* compiler barrier without instructions: keeps the instruction mix comparable with the assembly */
 #define OPAQUE(v) __asm__("" : "+v"(v))
 
-/* trunc16(RN(1/RN(sqrt(y)))): the portable replacement of vrsqrt14pd (see above) */
-AVX512 static inline __m512d
-rsqrt_portable(__m512d y)
-{
-    const __m512d r = _mm512_div_round_pd(V1(1.0), _mm512_sqrt_round_pd(y, RN), RN);
-    const __m512d t = _mm512_castsi512_pd(_mm512_and_si512(_mm512_castpd_si512(r), _mm512_set1_epi64((long long)0xfffffff000000000ULL)));
-    /* NaN: the quieted input, as from the instruction (keeps the NaN payloads of the results unchanged) */
-    return _mm512_mask_add_round_pd(t, _mm512_cmp_pd_mask(y, y, _CMP_UNORD_Q), y, y, RN);
-}
-
 AVX512 static inline __attribute__((always_inline)) __m512d
-acos8(__m512d x, int portable)
+acos8(__m512d x)
 {
     const __m512i signmask = _mm512_set1_epi64((long long)vSignMaskBits);
     const __m512d mx = _mm512_castsi512_pd(_mm512_or_si512(signmask, _mm512_castpd_si512(x)));  /* -|x| */
@@ -84,7 +73,7 @@ acos8(__m512d x, int portable)
     /* Y = 0.5 + 0.5*(-|x|) */
     const __m512d y = _mm512_fmadd_round_pd(V1(vHalf), mx, V1(vHalf), RN);
     const __m512d x2 = _mm512_mul_round_pd(mx, mx, RN);
-    __m512d r = portable ? rsqrt_portable(y) : _mm512_rsqrt14_pd(y);
+    __m512d r = _mm512_rsqrt14_pd(y);
     const __mmask8 tiny = _mm512_cmp_round_pd_mask(y, V1(vSmallY), _CMP_LT_OQ, SAE);
     const __mmask8 callout = _mm512_cmp_round_pd_mask(mx, V1(vMOne), _CMP_LT_OQ, SAE);  /* -|x| < -1 */
     const __m512d rr = _mm512_min_round_pd(x2, y, SAE);                                  /* R */
@@ -156,13 +145,7 @@ acos8(__m512d x, int portable)
 AVX512 __m512d
 svml_acos8_ha(__m512d x)
 {
-    return acos8(x, 0);
-}
-
-AVX512 __m512d
-svml_acos8_ha_portable(__m512d x)
-{
-    return acos8(x, 1);
+    return acos8(x);
 }
 
 #define ARRAY(NAME, KERNEL)                                                                         \
@@ -178,6 +161,5 @@ svml_acos8_ha_portable(__m512d x)
         }                                                                                           \
     }
 ARRAY(svml_acos_ha_array, svml_acos8_ha)
-ARRAY(svml_acos_ha_portable_array, svml_acos8_ha_portable)
 
 #endif /* __x86_64__ */

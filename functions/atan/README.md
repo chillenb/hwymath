@@ -6,7 +6,7 @@ The scalar routine is translated mechanically like asin's ([../asin/README.md](.
 
 | path | contents |
 |---|---|
-| `svml/svml_atan_d_ha.c` | bit-identical C/AVX-512 translation of the vector routine, and a `_portable` variant |
+| `svml/svml_atan_d_ha.c` | bit-identical C/AVX-512 translation of the vector routine |
 | `svml/svml_atan_d_ha_constants.inc` | vector-path constants and tables, generated from the assembly by `tools/gen_svml_constants.py` |
 | `svml/svml_datan_ha_cout_rare.inc` | the scalar routine, translated mechanically by `functions/asin/tools/asm2c.py` |
 | `hwy/` | portable Google Highway version |
@@ -37,8 +37,7 @@ translated and tested on its own (`test_rare`) but not used.
 
 `svml/svml_atan_d_ha.c` keeps the algorithm, the constants, the operation order and every instruction's
 rounding mode: `svml_atan8_ha(__m512d)` (bit-identical to Intel's, `test_atan8`; needs AVX-512F and DQ for
-`vreducepd`), `svml_atan_ha_array`, `svml_atan8_ha_portable` (with the portable reciprocal approximation;
-the reference for the Highway targets) and `svml_datan_ha_cout_rare(&x, &r)` (the generated scalar
+`vreducepd`), `svml_atan_ha_array` and `svml_datan_ha_cout_rare(&x, &r)` (the generated scalar
 routine, portable C). As in asin, empty `asm` barriers keep GCC from rewriting the sign operations as
 `and`/`vpternlogq`, so that `make atan-insns` compares equal instruction mixes.
 
@@ -52,24 +51,20 @@ routine, portable C). As in asin, empty `asm` barriers keep GCC from rewriting t
 | blend on t ≥ Shifter + 4 | j ≥ 16 on the integer index (equivalent for every lane whose table value is used) |
 | `vminpd {sae}`, `vcmppd`, masked FMAs, `vblendmpd` | `Min`, `Lt`, `IfThenElse` |
 | NaN propagation | NaN lanes are set to `x + x` (the quieted input, as the SVML code returns) |
-| `vrcp14pd` | **not reproducible**: see below |
+| `vrcp14pd` | the instruction on AVX-512 targets; elsewhere its bit-exact emulation (below) |
 
-`vrcp14pd`'s result bits are implementation-defined: under Intel SDE a function of the top 16 mantissa
-bits, with at most 16 significant bits (2¹⁶-entry table, not documented by Intel; reproducing it would
-need gathers). The result depends on them: Rcp₂ keeps the rounding error of RN(Rcp(1 + eps)), so it is not
-always the same double for different Rcp, and R = RN(Diff·Rcp₂) and the final rounding change with it. The
-Highway version uses **trunc16(RN(1/Y))** (one division, mantissa truncated to 16 bits: the same format,
-relative error < 2⁻¹⁶ + 2⁻⁵³) on every FMA target:
+The result depends on the `vrcp14pd` bits (Rcp₂ keeps the rounding error of RN(Rcp(1 + eps)), so R and
+the final rounding change with Rcp). The instruction is defined bit-exactly by Intel's reference
+RECIP14.c, which `functions/asin/hwy/approx14-inl.h` emulates without gathers (see asin's README; its
+domain, positive normal inputs with a normal reciprocal, covers Y ∈ [1, 2¹²⁸]):
 
-- the results are bit-identical on every FMA target and machine (AArch64 NEON/SVE/SVE2 checked under
-  QEMU), and equal to `svml_atan8_ha_portable`;
-- they differ from Intel's in 19 of the 2,004,201 test inputs (0.0009 %); max error 0.565 ulp as Intel's,
-  not correctly rounded 0.0320 % vs 0.0324 %;
-- `hwy_atan_native_array` uses `vrcp14pd` on AVX-512 targets: bit-identical to Intel's code on the same
-  CPU (verified under SDE), which proves that all other operations are emulated exactly.
+- the results are bit-identical to Intel's AVX-512 code (`svml_atan8_ha`) on every FMA target (AVX3_SPR,
+  AVX3_DL, AVX3, AVX2 under SDE; AArch64 NEON/SVE/SVE2 identical to x86-64 under QEMU);
+- the emulation costs time: AVX2 6.3 ns/value on the Core i5-9500 (4.5 ns with the earlier,
+  non-identical trunc16(1/Y) substitute).
 
 Targets without FMA (SSE2/SSSE3/SSE4) use `std::atan`. Intel's libsvml AVX2 code (`__svml_atan4_ha_l9`)
-is a different, less accurate algorithm (0.73 ulp); the Highway AVX2 version is as fast and keeps the
+is a different, less accurate algorithm (0.73 ulp); the Highway AVX2 version is ~1.5x slower and keeps the
 AVX-512 algorithm's 0.57 ulp.
 
 ## Tests (`make atan-test`, `make atan-avx512-test`)
@@ -78,7 +73,7 @@ AVX-512 algorithm's 0.57 ulp.
 |---|---|---|
 | `test_rare` | Intel's scalar `__svml_datan_ha_cout_rare_internal`: results, return codes, FP exception flags | 20,004,201 inputs, 0 mismatches |
 | `test_atan8` | Intel's `__svml_atan8_ha`, all 8 lanes bit-exact | 2,004,208 inputs, 0 mismatches (Intel SDE `-spr`); skipped (77) without AVX-512 |
-| `hwy_test` | every Highway target: error bound (max ≤ 0.6 ulp, none > 1 ulp), special inputs (NaN, ±inf, ±0, denormals), identical results on all FMA targets; with AVX-512: bit-identity of every FMA target with `svml_atan8_ha_portable` and of the native variant with `svml_atan8_ha` | all checks pass (AVX3_SPR, AVX3_DL, AVX3, AVX2 under SDE; AVX2 natively) |
+| `hwy_test` | every Highway target: error bound (max ≤ 0.6 ulp, none > 1 ulp), special inputs (NaN, ±inf, ±0, denormals), identical results on all FMA targets; with AVX-512: bit-identity of every FMA target with the C translation `svml_atan8_ha` | all checks pass (AVX3_SPR, AVX3_DL, AVX3, AVX2 under SDE; AVX2 natively) |
 | `make atan-insns` | arithmetic instruction mix of the compiled vector path vs the assembly | identical |
 | `make atan-xcheck` (`pixi run -e cross`) | Highway NEON, SVE and SVE2 under QEMU (SVE at 128, 256, 512, 1024 and 2048 bits, i.e. 2 to 32 lanes) vs x86-64 AVX2: inputs and results bit for bit (`functions/asin/tools/xcheck_invtrig.sh`) | identical on all 11 AArch64 configurations (200,000 random inputs plus the edge cases) |
 
@@ -86,5 +81,6 @@ Inputs (`tests/inputs.h`): special values (±0, ±inf, NaNs with payloads, denor
 ±50 ulps around every threshold of the vector code (7.875, 3.875…4.125, 2¹²⁸) and of the scalar routine
 (0.125, 2⁵⁴, 2⁻⁵³, 2⁻¹⁰²², ...), ±3 ulps around every table point j/4 and interval end (2j+1)/8, random
 values (uniform in [−8, 8], log-uniform magnitudes in [2⁻⁶⁰, 2⁷⁰], arbitrary bit patterns).
-`make atan-hashes` writes the result hashes (`port`, `native`, `svml-c intel`, `svml-c port`) for the
-cross-machine check.
+`make atan-hashes` writes the result hashes (`svml` per target, `svml-c svml`) for the cross-machine
+check; the exhaustive check of the `vrcp14pd` emulation (`build/asin/test_approx14`) also runs in `atan-test`
+and `atan-avx512-test`.

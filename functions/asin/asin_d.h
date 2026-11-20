@@ -13,11 +13,6 @@ __attribute__((target("avx512f"))) __m512d svml_asin8_ha(__m512d x);
 /* y[i] = asin(x[i]) for i < len; needs AVX-512F at run time. */
 __attribute__((target("avx512f"))) void svml_asin_ha_array(const double *x, double *y, size_t len);
 
-/* The same with vrsqrt14pd (implementation-defined bits) replaced by the portable approximation of the
- * Highway version, trunc16(1/sqrt(Y)): reference for the bit-identity of the Highway targets. */
-__attribute__((target("avx512f"))) __m512d svml_asin8_ha_portable(__m512d x);
-__attribute__((target("avx512f"))) void svml_asin_ha_portable_array(const double *x, double *y, size_t len);
-
 #endif /* __x86_64__ */
 
 /* Scalar asin used for special lanes (equivalent of __svml_dasin_ha_cout_rare_internal), translated

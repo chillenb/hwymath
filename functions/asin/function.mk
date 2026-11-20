@@ -25,7 +25,7 @@ ASIN_TESTS := $(ASIN_B)/test_rare $(ASIN_B)/test_asin8
 else
 ASIN_TESTS :=
 endif
-ASIN_PROGS := $(ASIN_TESTS) $(ASIN_B)/hwy_test
+ASIN_PROGS := $(ASIN_TESTS) $(ASIN_B)/test_approx14 $(ASIN_B)/hwy_test
 
 $(ASIN_B):
 	mkdir -p $@
@@ -42,8 +42,16 @@ ASIN_TEST_DEPS := $(ASIN)/tests/inputs.h common/include/hwymath/test_util.h $(AS
 $(ASIN_B)/test_%: $(ASIN)/tests/test_%.c $(ASIN_TEST_DEPS)
 	$(CC) $(CFLAGS) $(INC) $< $(ASIN_OBJS) -lm -o $@
 
+# --- exact emulation of vrcp14pd/vrsqrt14pd (used by asin, acos, atan, atan2) and its exhaustive test ---
+functions/asin/hwy/approx14_tables.h: functions/asin/tools/gen_approx14.py
+	python3 -I $< > $@
+$(ASIN_B)/hwy_approx14.o: $(ASIN)/tests/hwy_approx14.cc functions/asin/hwy/approx14-inl.h functions/asin/hwy/approx14_tables.h | $(ASIN_B)
+	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
+$(ASIN_B)/test_approx14: $(ASIN)/tests/test_approx14.cc $(ASIN)/tests/approx14_ref.h $(ASIN_B)/hwy_approx14.o
+	$(CXX) $(CXXFLAGS) $(INC) $< $(ASIN_B)/hwy_approx14.o $(LIBPATH) -lhwy -lm -o $@
+
 # --- Highway version ---
-$(ASIN_B)/hwy_asin.o: $(ASIN)/hwy/hwy_asin.cc $(ASIN)/hwy/hwy_asin_constants.h $(ASIN_GEN) | $(ASIN_B)
+$(ASIN_B)/hwy_asin.o: $(ASIN)/hwy/hwy_asin.cc $(ASIN)/hwy/hwy_asin_constants.h $(ASIN_GEN) functions/asin/hwy/approx14-inl.h functions/asin/hwy/approx14_tables.h | $(ASIN_B)
 	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
 $(ASIN_B)/extras.o: $(ASIN)/tests/extras.c $(ASIN)/tests/extras.h | $(ASIN_B)
 	$(CC) $(CFLAGS) $(INC) $(SLEEF_DEF) $(INTEL_DEF) -c $< -o $@
@@ -54,8 +62,9 @@ $(ASIN_B)/hwy_test: $(ASIN)/tests/hwy_test.cc $(ASIN)/tests/extras.h common/incl
 
 # --- entry points ---
 asin-all: $(ASIN_PROGS)
-asin-test: $(ASIN_TESTS) $(ASIN_B)/hwy_test
+asin-test: $(ASIN_TESTS) build/asin/test_approx14 $(ASIN_B)/hwy_test
 	@set -e; for t in $(ASIN_TESTS); do $(RUN) ./$$t || [ $$? -eq 77 ]; done
+	$(RUN) ./build/asin/test_approx14
 	$(RUN) ./$(ASIN_B)/hwy_test 2000000 --no-bench
 asin-hwy: $(ASIN_B)/hwy_test
 	./$(ASIN_B)/hwy_test
@@ -74,7 +83,8 @@ ifeq ($(ARCH),x86_64)
 asin-insns: $(ASIN_B)/svml_asin_d_ha.o $(ASIN_B)/svml_asm.o
 	common/tools/compare_insns.sh $(ASIN_B)/svml_asin_d_ha.o svml_asin8_ha $(ASIN_B)/svml_asm.o __svml_asin8_ha
 # AVX-512: bit-exactness of the translation vs Intel's assembly, Highway AVX-512 targets
-asin-avx512-test: $(ASIN_B)/test_asin8 $(ASIN_B)/hwy_test
+asin-avx512-test: $(ASIN_B)/test_asin8 $(ASIN_B)/hwy_test build/asin/test_approx14
+	$(RUN) ./build/asin/test_approx14
 	$(RUN) ./$(ASIN_B)/test_asin8 2000000 || [ $$? -eq 77 ]
 	$(RUN) ./$(ASIN_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 INSNS_TARGETS  += asin-insns

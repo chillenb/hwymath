@@ -13,12 +13,6 @@ __attribute__((target("avx512f"))) __m512d svml_atan28_ha(__m512d y, __m512d x);
 /* r[i] = atan2(y[i], x[i]) for i < len; needs AVX-512F at run time. */
 __attribute__((target("avx512f"))) void svml_atan2_ha_array(const double *y, const double *x, double *r, size_t len);
 
-/* The same with vrcp14pd (implementation-defined bits) replaced by the portable approximation of the
- * Highway version, trunc16(RN(1/B)): reference for the bit-identity of the Highway targets. */
-__attribute__((target("avx512f"))) __m512d svml_atan28_ha_portable(__m512d y, __m512d x);
-__attribute__((target("avx512f"))) void svml_atan2_ha_portable_array(const double *y, const double *x, double *r,
-                                                                      size_t len);
-
 #endif /* __x86_64__ */
 
 /* Scalar atan2 used for special lanes (equivalent of __svml_datan2_ha_cout_rare_internal), translated

@@ -19,26 +19,25 @@ at integration.
 
 | implementation | max ulp | not CR | > 1 ulp | ns/value |
 |---|---|---|---|---|
-| **Highway AVX2** (SVML algorithm, portable reciprocal) | 0.5718 | 0.0294 % | 0 | **4.51** |
-| Highway SSE4/SSSE3/SSE2 (`std::atan`) | 0.5190 | 0.0349 % | 0 | 10.0–10.2 |
-| Intel SVML HA AVX2 (libsvml `__svml_atan4_ha_l9`, a different algorithm) | 0.7324 | 3.4689 % | 0 | 4.43 |
-| SLEEF u10 AVX2 | 0.8242 | 1.0018 % | 0 | 4.45 |
-| glibc `atan` (scalar) | 0.5190 | 0.0349 % | 0 | 10.18 |
+| **Highway AVX2** (SVML algorithm, exact `vrcp14pd` emulation) | 0.5640 | 0.0293 % | 0 | **6.29** |
+| Highway SSE4/SSSE3/SSE2 (`std::atan`) | 0.5190 | 0.0349 % | 0 | 9.4–10.2 |
+| Intel SVML HA AVX2 (libsvml `__svml_atan4_ha_l9`, a different algorithm) | 0.7324 | 3.4689 % | 0 | 4.10 |
+| SLEEF u10 AVX2 | 0.8242 | 1.0018 % | 0 | 4.14 |
+| glibc `atan` (scalar) | 0.5190 | 0.0349 % | 0 | 9.88 |
 
-The machine is shared with other jobs: expect some run-to-run variation in the timings.
+The machine is shared with other jobs: expect some run-to-run variation in the timings. The exact
+`vrcp14pd` emulation (AVX2 only; AVX-512 targets use the instruction) is the price of bit-identity with
+Intel: with the earlier, non-identical trunc16 substitute the AVX2 version took 4.51 ns/value.
 
 ## AVX-512 targets under Intel SDE (`-spr`), 2,004,201 inputs (accuracy only)
 
 | implementation | max ulp | not CR | > 1 ulp |
 |---|---|---|---|
-| Highway AVX3_SPR / AVX3_DL / AVX3 / AVX2 (portable reciprocal; identical results) | 0.5645 | 0.0320 % | 0 |
-| Highway AVX3* native `vrcp14pd` (= Intel's results) | 0.5645 | 0.0324 % | 0 |
+| Highway AVX3_SPR / AVX3_DL / AVX3 / AVX2 (bit-identical to Intel's code) | 0.5645 | 0.0324 % | 0 |
 | C translation `svml_atan8_ha` (= `__svml_atan8_ha`) | 0.5645 | 0.0324 % | 0 |
-| C translation, portable reciprocal | 0.5645 | 0.0320 % | 0 |
 | Intel SVML HA AVX-512 (libsvml `__svml_atan8_ha_z0`) | 0.5645 | 0.0324 % | 0 |
 | Intel SVML HA AVX2 (libsvml `__svml_atan4_ha_l9`) | 0.7227 | 3.4616 % | 0 |
 | SLEEF u10 AVX-512 / AVX2 | 0.8135 | 1.0088 % | 0 |
 | glibc `atan` (scalar) | 0.5151 | 0.0369 % | 0 |
 
-The portable reciprocal changes 19 of the 2,004,201 results relative to Intel's (0.0009 %). SDE timings
-are meaningless and not shown.
+SDE timings are meaningless and not shown.

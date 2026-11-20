@@ -19,26 +19,25 @@ at integration.
 
 | implementation | max ulp | not CR | > 1 ulp | ns/value |
 |---|---|---|---|---|
-| **Highway AVX2** (SVML algorithm, portable rsqrt) | 0.8174 | 6.7724 % | 0 | **3.06** |
-| Highway SSE4/SSSE3/SSE2 (`std::acos`) | 0.5210 | 0.0370 % | 0 | 12.7–12.8 |
-| Intel SVML HA AVX2 (libsvml `__svml_acos4_ha_l9`) | 0.8174 | 6.7690 % | 0 | 3.00 |
-| SLEEF u10 AVX2 | 0.7778 | 1.7303 % | 0 | 4.04 |
-| glibc `acos` (scalar) | 0.5210 | 0.0370 % | 0 | 12.84 |
+| **Highway AVX2** (SVML algorithm, exact `vrsqrt14pd` emulation) | 0.8174 | 6.7581 % | 0 | **5.26** |
+| Highway SSE4/SSSE3/SSE2 (`std::acos`) | 0.5210 | 0.0370 % | 0 | 11.8–12.8 |
+| Intel SVML HA AVX2 (libsvml `__svml_acos4_ha_l9`) | 0.8174 | 6.7690 % | 0 | 2.49 |
+| SLEEF u10 AVX2 | 0.7778 | 1.7303 % | 0 | 3.66 |
+| glibc `acos` (scalar) | 0.5210 | 0.0370 % | 0 | 11.80 |
 
-The machine is shared with other jobs: expect some run-to-run variation in the timings.
+The machine is shared with other jobs: expect some run-to-run variation in the timings. The exact
+`vrsqrt14pd` emulation (AVX2 only; AVX-512 targets use the instruction) is the price of bit-identity with
+Intel: with the earlier, non-identical trunc16 substitute the AVX2 version took 3.06 ns/value.
 
 ## AVX-512 targets under Intel SDE (`-spr`), 2,004,655 inputs (accuracy only)
 
 | implementation | max ulp | not CR | > 1 ulp |
 |---|---|---|---|
-| Highway AVX3_SPR / AVX3_DL / AVX3 / AVX2 (portable rsqrt; identical results) | 0.8174 | 6.7737 % | 0 |
-| Highway AVX3* native `vrsqrt14pd` (= Intel's results) | 0.8174 | 6.7588 % | 0 |
+| Highway AVX3_SPR / AVX3_DL / AVX3 / AVX2 (bit-identical to Intel's code) | 0.8174 | 6.7588 % | 0 |
 | C translation `svml_acos8_ha` (= `__svml_acos8_ha`) | 0.8174 | 6.7588 % | 0 |
-| C translation, portable rsqrt | 0.8174 | 6.7737 % | 0 |
 | Intel SVML HA AVX-512 (libsvml `__svml_acos8_ha_z0`) | 0.8174 | 6.7679 % | 0 |
 | Intel SVML HA AVX2 (libsvml `__svml_acos4_ha_l9`) | 0.8115 | 6.7705 % | 0 |
 | SLEEF u10 AVX-512 / AVX2 | 0.7383 | 1.7231 % | 0 |
 | glibc `acos` (scalar) | 0.5186 | 0.0403 % | 0 |
 
-The portable rsqrt approximation changes 483 of the 2,004,655 results relative to Intel's (0.024 %).
 SDE timings are meaningless and not shown.

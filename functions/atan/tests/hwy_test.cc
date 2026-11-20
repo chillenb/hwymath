@@ -2,17 +2,15 @@
 // plus the other implementations available here (extras.c) and glibc's scalar atan.
 //
 // usage: hwy_test [N_RANDOM] [--no-bench] [--hash FILE]
-//   --hash FILE  append "arch atan target variant n hash" lines (FNV-1a of the result bits): variant
-//                "port" = SVML algorithm with the portable rcp approximation (must be identical on every
-//                machine and FMA target, and equal to the C translation's portable variant), "native" =
-//                AtanNativeArray on AVX-512 targets (vrcp14pd; equal to Intel's results on the same CPU),
-//                "intel"/"port" for the C translation itself when the CPU has AVX-512 ("svml-c" lines).
+//   --hash FILE  append "arch atan target svml n hash" lines (FNV-1a of the result bits; every FMA target
+//                must give the same hash on every machine, equal to the C translation's, which is
+//                written as "svml-c" when the CPU has AVX-512) for the CI cross-machine check.
 // Exit status 1 if a check fails:
 //   - FMA targets: max error <= kMaxUlp, no error > 1 ulp, NaN/inf/zero/denormal results as expected
 //     (NaN = quieted input, atan(+-inf) = +-RN(pi/2), atan(x) = x for |x| < 2^-1022)
 //   - all FMA targets produce identical results
-//   - with AVX-512 (also under Intel SDE): every FMA target matches svml_atan8_ha_portable bit for bit,
-//     and the native variant of the AVX-512 targets matches svml_atan8_ha (= Intel's code) bit for bit
+//   - with AVX-512 (also under Intel SDE): every FMA target matches the C translation svml_atan8_ha
+//     (= Intel's code) bit for bit
 #include <cfloat>
 #include <cmath>
 #include <cstdint>
@@ -29,7 +27,6 @@ extern "C" {
 #include "extras.h"
 #include "hwymath/accuracy.h"
 void hwy_atan_array(const double *x, double *y, size_t len);
-void hwy_atan_native_array(const double *x, double *y, size_t len);
 int hwy_atan_variant(void);
 size_t hwy_atan_lanes(void);
 }
@@ -103,21 +100,13 @@ int main(int argc, char **argv) {
 
     int failures = 0;
     bool have_avx512 = false;
-    std::vector<double> ref_intel, ref_port;
+    std::vector<double> ref_intel;
 #if defined(__x86_64__)
     have_avx512 = __builtin_cpu_supports("avx512f");
-    if (have_avx512) {  // the C translation: Intel-identical, and with the portable rcp approximation
+    if (have_avx512) {  // the C translation (bit-identical to Intel's code)
         ref_intel.resize(x.size());
-        ref_port.resize(x.size());
         svml_atan_ha_array(x.data(), ref_intel.data(), x.size());
-        svml_atan_ha_portable_array(x.data(), ref_port.data(), x.size());
-        const size_t nd = count_diff(ref_intel, ref_port);
-        printf("C translation: portable rcp approximation vs vrcp14pd: %zu of %zu results differ (%.4f%%)\n\n", nd,
-               x.size(), 100.0 * nd / x.size());
-        if (hf) {
-            fprintf(hf, "%s atan svml-c intel %zu %016llx\n", kArch, x.size(), (unsigned long long)acc_hash(ref_intel.data(), x.size()));
-            fprintf(hf, "%s atan svml-c port %zu %016llx\n", kArch, x.size(), (unsigned long long)acc_hash(ref_port.data(), x.size()));
-        }
+        if (hf) fprintf(hf, "%s atan svml-c svml %zu %016llx\n", kArch, x.size(), (unsigned long long)acc_hash(ref_intel.data(), x.size()));
     }
 #endif
 
@@ -125,7 +114,7 @@ int main(int argc, char **argv) {
     printf("%-24s %-10s %5s %9s %10s %8s %8s %10s\n", "implementation", "algorithm", "lanes", "max ulp", "not CR",
            ">1 ulp", "special", do_bench ? "ns/value" : "");
     bool have_hash = false;
-    uint64_t port_hash = 0;
+    uint64_t first_hash = 0;
     for (int64_t target : hwy::SupportedAndGeneratedTargets()) {
         hwy::SetSupportedTargetsForTest(target);
         const int variant = hwy_atan_variant();
@@ -134,11 +123,11 @@ int main(int argc, char **argv) {
         const acc_stats s = accuracy(x, y);
         char name[64];
         snprintf(name, sizeof name, "hwy %s", tname);
-        print_row(name, variant ? "SVML port" : "std::atan", hwy_atan_lanes(), s, bench(hwy_atan_array));
+        print_row(name, variant ? "SVML" : "std::atan", hwy_atan_lanes(), s, bench(hwy_atan_array));
         if (!variant) continue;
 
         const uint64_t h = acc_hash(y.data(), y.size());
-        if (hf) fprintf(hf, "%s atan %s port %zu %016llx\n", kArch, tname, y.size(), (unsigned long long)h);
+        if (hf) fprintf(hf, "%s atan %s svml %zu %016llx\n", kArch, tname, y.size(), (unsigned long long)h);
         if (s.max_err > kMaxUlp || s.over1 || s.mismatched_special) { printf("  FAIL: error bound exceeded\n"); failures++; }
         size_t bad_special = 0;
         for (size_t i = 0; i < x.size(); i++) {
@@ -146,25 +135,12 @@ int main(int argc, char **argv) {
             if (special_expected(x[i], &r) && dbits(r) != dbits(y[i])) bad_special++;
         }
         if (bad_special) { printf("  FAIL: %zu special inputs with unexpected results\n", bad_special); failures++; }
-        if (!have_hash) { port_hash = h; have_hash = true; }
-        else if (h != port_hash) { printf("  FAIL: results differ from the first FMA target\n"); failures++; }
+        if (!have_hash) { first_hash = h; have_hash = true; }
+        else if (h != first_hash) { printf("  FAIL: results differ from the first FMA target\n"); failures++; }
         if (have_avx512) {
-            const size_t nd = count_diff(y, ref_port, &x);
-            printf("  bit-identical to svml_atan8_ha_portable: %s (%zu differences)\n", nd ? "NO" : "yes", nd);
+            const size_t nd = count_diff(y, ref_intel, &x);
+            printf("  bit-identical to svml_atan8_ha (Intel's code): %s (%zu differences)\n", nd ? "NO" : "yes", nd);
             if (nd) failures++;
-        }
-        if (variant == 2) {
-            hwy_atan_native_array(x.data(), y.data(), x.size());
-            const acc_stats sn = accuracy(x, y);
-            snprintf(name, sizeof name, "  native vrcp14pd");
-            print_row(name, "SVML", 0, sn, bench(hwy_atan_native_array));
-            if (hf) fprintf(hf, "%s atan %s native %zu %016llx\n", kArch, tname, y.size(),
-                            (unsigned long long)acc_hash(y.data(), y.size()));
-            if (have_avx512) {
-                const size_t nd = count_diff(y, ref_intel, &x);
-                printf("  native: bit-identical to svml_atan8_ha (Intel's code): %s (%zu differences)\n", nd ? "NO" : "yes", nd);
-                if (nd) failures++;
-            }
         }
     }
     hwy::SetSupportedTargetsForTest(0);
@@ -172,7 +148,6 @@ int main(int argc, char **argv) {
 #if defined(__x86_64__)
     if (have_avx512) {
         print_row("C SVML AVX-512", "SVML", 8, accuracy(x, ref_intel), bench(svml_atan_ha_array));
-        print_row("C SVML AVX-512 portable", "SVML port", 8, accuracy(x, ref_port), bench(svml_atan_ha_portable_array));
     }
 #endif
     struct extra_impl ex[16];

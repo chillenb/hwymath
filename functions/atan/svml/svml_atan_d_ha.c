@@ -25,9 +25,8 @@
  *
  * vrcp14pd results are implementation-defined (Intel's are a function of the top 16 mantissa bits, with
  * at most 16 significant bits); the result of the algorithm depends on them (Rcp2 keeps the rounding
- * error of Rcp(1 + eps)). svml_atan8_ha_portable() replaces the instruction by the deterministic
- * approximation used by the Highway version, trunc16(RN(1/Y)) (16 significant bits, relative error
- * < 2^-16 + 2^-53), as a reference for the Highway targets.
+ * error of Rcp(1 + eps)). Intel publishes a bit-exact reference
+ * (RECIP14.c), which the Highway version emulates (functions/asin/hwy/approx14-inl.h).
  *
  * Build: any x86-64 C compiler with AVX-512F intrinsics (GCC, Clang, ICX). Do not use -ffast-math.
  * Only the vector functions need AVX-512F at run time; the scalar routine is plain C.
@@ -65,18 +64,8 @@
 /* compiler barrier without instructions: keeps the instruction mix comparable with the assembly */
 #define OPAQUE(v) __asm__("" : "+v"(v))
 
-/* trunc16(RN(1/y)): the portable replacement of vrcp14pd (see above) */
-AVX512 static inline __m512d
-rcp_portable(__m512d y)
-{
-    const __m512d r = _mm512_div_round_pd(V1(1.0), y, RN);
-    const __m512d t = _mm512_castsi512_pd(_mm512_and_si512(_mm512_castpd_si512(r), _mm512_set1_epi64((long long)0xfffffff000000000ULL)));
-    /* NaN: the quieted input, as from the instruction (keeps the NaN payloads of the results unchanged) */
-    return _mm512_mask_add_round_pd(t, _mm512_cmp_pd_mask(y, y, _CMP_UNORD_Q), y, y, RN);
-}
-
 AVX512 static inline __attribute__((always_inline)) __m512d
-atan8(__m512d x, int portable)
+atan8(__m512d x)
 {
     const __m512d one = V1(vOne);
     __m512d ax = _mm512_castsi512_pd(
@@ -96,7 +85,7 @@ atan8(__m512d x, int portable)
     const __m512d th0 = _mm512_permutex2var_pd(_mm512_loadu_pd(vAtanHi), idx, _mm512_loadu_pd(vAtanHi + 8));
     y = _mm512_mask_fmadd_round_pd(y, small, x0, one, RN);  /* Y = a*x0 + 1 for a < 7.875 */
     const __mmask8 hi16 = _mm512_cmp_round_pd_mask(t, V1(vShifter16), _CMP_GE_OQ, SAE);  /* j >= 16 */
-    __m512d rcp = portable ? rcp_portable(y) : _mm512_rcp14_pd(y);
+    __m512d rcp = _mm512_rcp14_pd(y);
     const __m512d th1 = _mm512_permutex2var_pd(_mm512_loadu_pd(vAtanHi + 16), idx, _mm512_loadu_pd(vAtanHi + 24));
     const __m512d ym1 = _mm512_sub_round_pd(y, one, RN);             /* (x*x0)_high */
     const __m512d xx0lo = _mm512_fmsub_round_pd(x0, ax, ym1, RN);   /* (x*x0)_low */
@@ -144,13 +133,7 @@ atan8(__m512d x, int portable)
 AVX512 __m512d
 svml_atan8_ha(__m512d x)
 {
-    return atan8(x, 0);
-}
-
-AVX512 __m512d
-svml_atan8_ha_portable(__m512d x)
-{
-    return atan8(x, 1);
+    return atan8(x);
 }
 
 #define ARRAY(NAME, KERNEL)                                                                         \
@@ -166,6 +149,5 @@ svml_atan8_ha_portable(__m512d x)
         }                                                                                           \
     }
 ARRAY(svml_atan_ha_array, svml_atan8_ha)
-ARRAY(svml_atan_ha_portable_array, svml_atan8_ha_portable)
 
 #endif /* __x86_64__ */

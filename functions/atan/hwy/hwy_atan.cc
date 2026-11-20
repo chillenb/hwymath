@@ -5,13 +5,10 @@
 //     (the same rounding to a multiple of 1/4, ties to even; the subtraction is exact), the two-source
 //     permutes of the 32-entry tables = TableLookupLanes/TwoTablesLookupLanes (vector length dependent:
 //     one vector, two vectors, or several two-vector lookups merged with selects, e.g. four on AVX2),
-//     vminpd = Min, masked operations = IfThenElse. vrcp14pd, whose result bits are implementation-
-//     defined, is replaced by trunc16(RN(1/Y)) (16 significant bits, like Intel's, relative error
-//     < 2^-16 + 2^-53 instead of 2^-14), so the results are identical on all these targets and machines
-//     (= svml_atan8_ha_portable), and differ from Intel's in the last bit for a small fraction of the
-//     inputs (see README.md);
-//     AtanNativeArray uses vrcp14pd itself on AVX-512 targets (bit-identical to Intel's code on the same
-//     CPU) and is the same as AtanArray elsewhere;
+//     vminpd = Min, masked operations = IfThenElse);
+//     vrcp14pd is emulated bit-exactly (approx14-inl.h, after Intel's reference RECIP14.c) on
+//     targets without AVX-512 and is the instruction itself on AVX-512 targets, so the results are
+//     bit-identical to Intel's AVX-512 code (svml_atan8_ha) on all these targets;
 //   - targets without FMA (SSE2/SSSE3/SSE4): std::atan.
 // No scalar callout; NaN lanes return the quieted input, like the SVML code.
 // Based on Intel SVML (BSD-3-Clause, Copyright (C) 2023 Intel Corporation); same license.
@@ -26,6 +23,7 @@
 #define HWY_TARGET_INCLUDE "functions/atan/hwy/hwy_atan.cc"
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
 #include "hwy/highway.h"
+#include "functions/asin/hwy/approx14-inl.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace hwyatan {
@@ -56,18 +54,19 @@ HWY_INLINE hn::VFromD<D> Lookup32(D d, const double *tab, const double *pad, VU 
     return hn::GatherIndex(d, tab, hn::BitCast(di, j));  // single-lane targets
 }
 
-// approximation of 1/y with 16 significant bits: vrcp14pd (native, AVX-512 only) or trunc16(RN(1/y))
-template <bool kNative, class D>
-HWY_INLINE hn::VFromD<D> RcpApprox(D d, hn::VFromD<D> y) {
+// vrcp14pd: the instruction on AVX-512 targets, elsewhere its bit-exact emulation (approx14-inl.h; its
+// domain covers every lane whose result is used)
+template <class D>
+HWY_INLINE hn::VFromD<D> Rcp14(D d, hn::VFromD<D> y) {
 #if HWY_TARGET <= HWY_AVX3
-    if constexpr (kNative) return hn::ApproximateReciprocal(y);
+    (void)d;
+    return hn::ApproximateReciprocal(y);
+#else
+    return hwyinvtrig::HWY_NAMESPACE::Rcp14(d, y);
 #endif
-    const hn::RebindToUnsigned<D> du;
-    const auto r = hn::Div(hn::Set(d, 1.0), y);
-    return hn::BitCast(d, hn::And(hn::BitCast(du, r), hn::Set(du, 0xfffffff000000000ULL)));
 }
 
-template <bool kNative, class D>
+template <class D>
 HWY_INLINE hn::VFromD<D> AtanCore(D d, hn::VFromD<D> x) {
     using V = hn::VFromD<D>;
     const hn::RebindToUnsigned<D> du;
@@ -87,7 +86,7 @@ HWY_INLINE hn::VFromD<D> AtanCore(D d, hn::VFromD<D> x) {
     const V xx0lo = hn::MulSub(x0, ax, hn::Sub(y, one));  // (x*x0)_low
 
     // Rcp2 = Rcp (1 + eps)(1 + eps^2), eps = 1 - Y Rcp
-    V rcp = RcpApprox<kNative>(d, y);
+    V rcp = Rcp14(d, y);
     const V eps = hn::NegMulAdd(rcp, y, one);
     const V eps2 = hn::Mul(eps, eps);
     rcp = hn::MulAdd(eps, rcp, rcp);
@@ -114,32 +113,29 @@ HWY_INLINE hn::VFromD<D> AtanCore(D d, hn::VFromD<D> x) {
     return hn::IfThenElse(hn::IsNaN(x), hn::Add(x, x), res);
 }
 
-template <bool kNative>
 HWY_INLINE void AtanLoop(const double *HWY_RESTRICT x, double *HWY_RESTRICT y, size_t len) {
     const hn::ScalableTag<double> d;
     const size_t N = hn::Lanes(d);
     size_t i = 0;
-    for (; i + N <= len; i += N) hn::StoreU(AtanCore<kNative>(d, hn::LoadU(d, x + i)), d, y + i);
-    if (i < len) hn::StoreN(AtanCore<kNative>(d, hn::LoadN(d, x + i, len - i)), d, y + i, len - i);
+    for (; i + N <= len; i += N) hn::StoreU(AtanCore(d, hn::LoadU(d, x + i)), d, y + i);
+    if (i < len) hn::StoreN(AtanCore(d, hn::LoadN(d, x + i, len - i)), d, y + i, len - i);
 }
 
-void AtanArray(const double *HWY_RESTRICT x, double *HWY_RESTRICT y, size_t len) { AtanLoop<false>(x, y, len); }
-void AtanNativeArray(const double *HWY_RESTRICT x, double *HWY_RESTRICT y, size_t len) { AtanLoop<true>(x, y, len); }
+void AtanArray(const double *HWY_RESTRICT x, double *HWY_RESTRICT y, size_t len) { AtanLoop(x, y, len); }
 
 #else  // no fused multiply-add: the algorithm's error-free steps would not be exact
 
 void AtanArray(const double *HWY_RESTRICT x, double *HWY_RESTRICT y, size_t len) {
     for (size_t i = 0; i < len; i++) y[i] = std::atan(x[i]);
 }
-void AtanNativeArray(const double *HWY_RESTRICT x, double *HWY_RESTRICT y, size_t len) { AtanArray(x, y, len); }
 
 #endif
 
 size_t LanesF64() { return hn::Lanes(hn::ScalableTag<double>()); }
 
-int Variant() {  // 0: std::atan fallback, 1: SVML algorithm, 2: same, and AtanNativeArray uses vrcp14pd
+int Variant() {  // 0: std fallback, 1: SVML algorithm (bit-identical to Intel's)
 #if HWY_NATIVE_FMA && HWY_HAVE_FLOAT64
-    return HWY_TARGET <= HWY_AVX3 ? 2 : 1;
+    return 1;
 #else
     return 0;
 #endif
@@ -152,19 +148,16 @@ HWY_AFTER_NAMESPACE();
 #if HWY_ONCE
 namespace hwyatan {
 HWY_EXPORT(AtanArray);
-HWY_EXPORT(AtanNativeArray);
 HWY_EXPORT(Variant);
 HWY_EXPORT(LanesF64);
 // dispatch inside the namespace: with a single (static) target, HWY_DYNAMIC_DISPATCH(F) becomes N_<TARGET>::F
 static void DispatchAtan(const double *x, double *y, size_t len) { HWY_DYNAMIC_DISPATCH(AtanArray)(x, y, len); }
-static void DispatchNative(const double *x, double *y, size_t len) { HWY_DYNAMIC_DISPATCH(AtanNativeArray)(x, y, len); }
 static int DispatchVariant() { return HWY_DYNAMIC_DISPATCH(Variant)(); }
 static size_t DispatchLanes() { return HWY_DYNAMIC_DISPATCH(LanesF64)(); }
 }  // namespace hwyatan
 
 extern "C" {
 void hwy_atan_array(const double *x, double *y, size_t len) { hwyatan::DispatchAtan(x, y, len); }
-void hwy_atan_native_array(const double *x, double *y, size_t len) { hwyatan::DispatchNative(x, y, len); }
 int hwy_atan_variant(void) { return hwyatan::DispatchVariant(); }
 size_t hwy_atan_lanes(void) { return hwyatan::DispatchLanes(); }
 }

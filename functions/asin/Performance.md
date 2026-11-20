@@ -19,27 +19,26 @@ at integration.
 
 | implementation | max ulp | not CR | > 1 ulp | ns/value |
 |---|---|---|---|---|
-| **Highway AVX2** (SVML algorithm, portable rsqrt) | 0.8389 | 6.1196 % | 0 | **2.31** |
-| Highway SSE4/SSSE3/SSE2 (`std::asin`) | 0.5146 | 0.1007 % | 0 | 11.9–12.4 |
-| Intel SVML HA AVX2 (libsvml `__svml_asin4_ha_l9`) | 0.8389 | 6.1136 % | 0 | 2.36 |
-| SLEEF u10 AVX2 | 0.8984 | 4.2965 % | 0 | 3.11 |
-| glibc `asin` (scalar) | 0.5146 | 0.1007 % | 0 | 12.20 |
+| **Highway AVX2** (SVML algorithm, exact `vrsqrt14pd` emulation) | 0.8320 | 6.0962 % | 0 | **5.45** |
+| Highway SSE4/SSSE3/SSE2 (`std::asin`) | 0.5146 | 0.1007 % | 0 | 11.4–12.4 |
+| Intel SVML HA AVX2 (libsvml `__svml_asin4_ha_l9`) | 0.8389 | 6.1136 % | 0 | 2.26 |
+| SLEEF u10 AVX2 | 0.8984 | 4.2965 % | 0 | 2.95 |
+| glibc `asin` (scalar) | 0.5146 | 0.1007 % | 0 | 11.59 |
 
-The machine is shared with other jobs: expect some run-to-run variation in the timings.
+The machine is shared with other jobs: expect some run-to-run variation in the timings. The exact
+`vrsqrt14pd` emulation (AVX2 only; AVX-512 targets use the instruction) is the price of bit-identity with
+Intel: with the earlier, non-identical trunc16 substitute the AVX2 version took 2.31 ns/value.
 
 ## AVX-512 targets under Intel SDE (`-spr`), 2,004,655 inputs (accuracy only)
 
 | implementation | max ulp | not CR | > 1 ulp |
 |---|---|---|---|
-| Highway AVX3_SPR / AVX3_DL / AVX3 / AVX2 (portable rsqrt; identical results) | 0.8291 | 6.1020 % | 0 |
-| Highway AVX3* native `vrsqrt14pd` (= Intel's results) | 0.8291 | 6.0793 % | 0 |
+| Highway AVX3_SPR / AVX3_DL / AVX3 / AVX2 (bit-identical to Intel's code) | 0.8291 | 6.0793 % | 0 |
 | C translation `svml_asin8_ha` (= `__svml_asin8_ha`) | 0.8291 | 6.0793 % | 0 |
-| C translation, portable rsqrt | 0.8291 | 6.1020 % | 0 |
 | Intel SVML HA AVX-512 (libsvml `__svml_asin8_ha_z0`) | 0.8291 | 6.0919 % | 0 |
 | Intel SVML HA AVX2 (libsvml `__svml_asin4_ha_l9`) | 0.8223 | 6.0927 % | 0 |
 | SLEEF u10 AVX-512 / AVX2 | 0.8618 | 4.2940 % | 0 |
 | glibc `asin` (scalar) | 0.5103 | 0.0987 % | 0 |
 
-The portable rsqrt approximation changes 620 of the 2,004,655 results relative to Intel's (0.031 %).
 The libsvml binaries are a slightly different build than the open-source assembly. SDE timings are
 meaningless and not shown.
