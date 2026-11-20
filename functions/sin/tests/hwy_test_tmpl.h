@@ -12,7 +12,8 @@
 //                translation when the CPU has AVX-512, and "arch <f> inputs - <n> <hash>": all svml hashes
 //                must be equal (on every machine), which the CI cross-check verifies.
 // Exit status 1 if a check fails:
-//   - SVML-algorithm targets: max error < 1 ulp (the HA bound), NaN exactly where the reference is NaN
+//   - SVML-algorithm targets: max error < 1 ulp (the HA bound), NaN exactly where the reference is NaN,
+//     signed zeros and infinities as in the reference
 //   - all SVML-algorithm targets produce identical results
 //   - with AVX-512F/DQ (or Intel SDE): every SVML-algorithm target matches the C translation (and hence
 //     Intel's assembly, see test_<f>8) bit for bit
@@ -50,14 +51,14 @@ static const char *kArch = "other";
 static std::vector<long double> g_ref;  // reference results, computed once
 
 struct Acc {
-    acc_stats all = ACC_STATS_INIT, huge = ACC_STATS_INIT;  // huge: |x| > TRIG_THRESHOLD
+    acc_stats main = ACC_STATS_INIT, huge = ACC_STATS_INIT;  // |x| <= TRIG_THRESHOLD (and inf/NaN), larger |x|
 };
 
 static Acc accuracy(const std::vector<double> &x, const std::vector<double> &y) {
     Acc a;
     for (size_t i = 0; i < x.size(); i++) {
-        acc_add(&a.all, x[i], y[i], g_ref[i]);
-        if (std::fabs(x[i]) > TRIG_THRESHOLD && std::isfinite(x[i])) acc_add(&a.huge, x[i], y[i], g_ref[i]);
+        const bool huge = std::fabs(x[i]) > TRIG_THRESHOLD && std::isfinite(x[i]);
+        acc_add(huge ? &a.huge : &a.main, x[i], y[i], g_ref[i]);
     }
     return a;
 }
@@ -69,7 +70,11 @@ static void bench(trig_array_fn f, double *ns_main, double *ns_huge) {
     static double in[N], out[N];
     for (size_t i = 0; i < N; i++) in[i] = rng_uniform(-100.0, 100.0);
     *ns_main = acc_bench(f, in, out, N, 2000);
-    for (size_t i = 0; i < N; i++) in[i] = std::ldexp(rng_uniform(1.0, 2.0), 30 + (int)(rng() % 970));
+    for (size_t i = 0; i < N; i++) {  // one generator call per statement (evaluation order is unspecified)
+        const double m = rng_uniform(1.0, 2.0);
+        const int e = 30 + (int)(rng() % 970);
+        in[i] = std::ldexp(m, e);
+    }
     *ns_huge = acc_bench(f, in, out, N, 200);
 }
 
@@ -82,7 +87,7 @@ static void print_row(const char *name, const char *alg, size_t lanes, const Acc
         snprintf(t1, sizeof t1, "%.2f", m);
         snprintf(t2, sizeof t2, "%.1f", h);
     }
-    const acc_stats &s = a.all, &h = a.huge;
+    const acc_stats &s = a.main, &h = a.huge;
     printf("%-26s %-10s %5s %8.4f %8.4f%% %6zu %4zu | %8.4f %8.4f%% %6zu | %8s %8s\n", name, alg, l, s.max_err,
            s.n ? 100.0 * s.not_cr / s.n : 0.0, s.over1, s.mismatched_special, h.max_err,
            h.n ? 100.0 * h.not_cr / h.n : 0.0, h.over1, t1, t2);
@@ -131,8 +136,9 @@ int main(int argc, char **argv) {
     printf("%s %s, %zu inputs (%s), errors in ulps vs %s (long double with %d-bit mantissa)\n", kArch, TRIG_NAME, x.size(),
            ref_c.empty() ? "no AVX-512: no direct comparison with the C translation" : "with AVX-512",
            TRIG_NAME "l", LDBL_MANT_DIG);
-    printf("columns: max ulp, %% not correctly rounded, > 1 ulp, special-value mismatches (all inputs) | the same for "
-           "|x| > %g | ns/value for |x| <= 100 and for huge |x|\n\n", TRIG_THRESHOLD);
+    printf("columns: max ulp, %% not correctly rounded, > 1 ulp, special-value mismatches for |x| <= %g (main path) and "
+           "+-inf/NaN | the same for larger |x| (large-argument path) | ns/value for |x| <= 100 and for huge |x|\n\n",
+           TRIG_THRESHOLD);
     printf("%-26s %-10s %5s %8s %9s %6s %4s | %8s %9s %6s | %8s %8s\n", "implementation", "algorithm", "lanes", "max ulp",
            "not CR", ">1ulp", "spec", "max ulp", "not CR", ">1ulp", "ns", "ns huge");
     bool have_first = false;
@@ -146,10 +152,11 @@ int main(int argc, char **argv) {
         snprintf(name, sizeof name, "hwy %s", tname);
         print_row(name, variant ? "SVML" : "std::" TRIG_NAME, TRIG_HWY_LANES(), a, do_bench, TRIG_HWY_ARRAY);
         if (variant) {
-            printf("  %s: worst x = %a (|x| > threshold: %a)\n", tname, a.all.worst_x, a.huge.worst_x);
+            printf("  %s: worst x = %a (main path), %a (large path)\n", tname, a.main.worst_x, a.huge.worst_x);
             if (hf) fprintf(hf, "%s %s %s svml %zu %016llx\n", kArch, TRIG_NAME, tname, y.size(),
                             (unsigned long long)acc_hash(y.data(), y.size()));
-            if (!(a.all.max_err < 1.0) || a.all.over1 || a.all.mismatched_special) {
+            if (!(a.main.max_err < 1.0) || !(a.huge.max_err < 1.0) || a.main.over1 || a.huge.over1 ||
+                a.main.mismatched_special || a.huge.mismatched_special) {
                 printf("  FAIL: error bound exceeded or wrong special values\n");
                 failures++;
             }
