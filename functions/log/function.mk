@@ -12,7 +12,8 @@ LOG_ASM := $(SVML_ASM)/svml_z0_log_d_ha.s
 LOG_H   := $(LOG)/log_d.h
 # shared by the log family
 LOGF_GEN     := $(LOG)/tools/gen_svml_constants.py common/tools/extract_tables.py
-LOGF_HWY_H   := $(LOG)/hwy/log_hwy-inl.h $(LOG)/hwy/log_tables.h $(LOG)/hwy/rcp14_thresholds.h
+LOGF_HWY_H   := $(LOG)/hwy/log_hwy-inl.h $(LOG)/hwy/log_tables.h $(LOG)/hwy/rcp14_thresholds.h \
+                common/include/hwymath/hwy/avx512_native-inl.h
 LOGF_TEST_H  := $(LOG)/tests/log_family_test.h $(LOG)/tests/extras.h common/include/hwymath/accuracy.h \
                 common/include/hwymath/test_util.h
 

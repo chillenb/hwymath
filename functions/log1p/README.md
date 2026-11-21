@@ -43,7 +43,7 @@ results are **bit-identical** to Intel's AVX-512 code: verified under Intel SDE 
 AVX3_SPR (`-spr`) and AVX10_2 (`-dmr`) against the C translation, and under QEMU for AArch64 NEON, SVE and
 SVE2 at 128/256/512/2048-bit vectors against x86-64 (`make log1p-xcheck`). Targets without FMA use `std::log1p`.
 
-The AVX-512-only operations are emulated exactly by the helpers shared with log (`functions/log/hwy/log_hwy-inl.h`;
+On every target except the AVX-512 ones, the AVX-512-only operations are emulated exactly by the helpers shared with log (`functions/log/hwy/log_hwy-inl.h`;
 details, and the proof that the rounded `vrcp14pd` can be reproduced exactly, in [log's README](../log/README.md)):
 
 | AVX-512 | emulation |
@@ -57,6 +57,13 @@ details, and the proof that the rounded `vrcp14pd` can be reproduced exactly, in
 | `vrcp14pd` + `vrndscalepd` | exact model: 16 measured thresholds of the rounded reciprocal, a 32-entry `uint32` table and integer operations on the high word of the mantissa |
 | masked `vaddpd` (E + 1 if rcp < 0.75) | `MaskedAddOr` |
 | `{rn-sae}` | all rounding is round-to-nearest: plain `MulAdd`/`MulSub`/`Add`/`Mul` |
+
+On the AVX-512 targets (`HWYMATH_NATIVE_AVX512`) Intel's instructions are used instead (see
+[log's README](../log/README.md)): `vgetexppd`/`vgetmantpd` of Xh, `vrcp14pd` + `vrndscalepd`, the unmasked
+`vpsrlq $48` index into `vpermt2pd`, `vscalefpd` of Xl by −E (a `vxorpd` on E, as in Intel's code), and
+`vfpclasspd $0xdf` on Xh = 1 + x for the special lanes (one instruction, like Intel's `vcmppd` on Rl2, and
+the same lanes). AVX3 loop: 43 vector/mask instructions besides loads, stores and register moves (57 with the
+emulations), the same as Intel's main path (43, counting `kmovw` like our `kortestb`).
 
 Deviations: none in the results. The vector code may raise FP flags where the `{sae}` assembly does not;
 special lanes go through the same C callout, which raises the documented flags. The C callout returns NaNs

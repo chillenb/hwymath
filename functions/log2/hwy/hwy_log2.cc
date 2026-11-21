@@ -6,6 +6,7 @@
 // (rcp14_thresholds.h), vpermt2pd by TwoTablesLookupLanes (one instruction on AVX-512, two-table lookups
 // and selects on narrower vectors). Results are bit-identical to __svml_log28_ha. Lanes with x <= 0,
 // +-inf or NaN use the scalar SVML callout (svml_dlog2_ha_cout_rare), like the assembly.
+// On AVX-512 targets (HWYMATH_NATIVE_AVX512) the instructions themselves replace these emulations.
 // Targets without FMA (SSE2/SSSE3/SSE4): std::log.
 // Based on Intel SVML (BSD-3-Clause, Copyright (C) 2023 Intel Corporation); same license.
 
@@ -23,6 +24,7 @@ extern "C" int svml_dlog2_ha_cout_rare(const double *px, double *pr);
 #include "hwy/highway.h"
 #include "hwy/contrib/math/math-inl.h"
 #include "functions/log/hwy/log_hwy-inl.h"
+#include "hwymath/hwy/avx512_native-inl.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace hwymath_log {
@@ -39,7 +41,8 @@ static HWY_NOINLINE __attribute__((cold)) void Log2FixSpecial(const double *x, d
 }
 
 // the vector path of __svml_log28_ha (same operations, same order of roundings)
-// kDenormals: also correct for denormal x (slower; only used for vectors with special lanes)
+// kDenormals: also correct for denormal x (slower; only used for vectors with special lanes; no difference
+// on AVX-512 targets)
 template <bool kDenormals, class D, class V = hn::VFromD<D>>
 HWY_INLINE V Log2Core(D d, V x) {
     using namespace log2_e;
@@ -76,8 +79,17 @@ HWY_INLINE V Log2Core(D d, V x) {
 void Log2Array(const double *HWY_RESTRICT x, double *HWY_RESTRICT y, size_t len) {
     const hn::ScalableTag<double> d;
     const size_t N = hn::Lanes(d);
-    const auto dbl_min = hn::Set(d, 0x1p-1022), inf = hn::Inf(d);
     size_t i = 0;
+#if HWYMATH_NATIVE_AVX512
+    // vgetexppd/vgetmantpd handle denormals: one path; special lanes (x <= 0, +-inf, NaN: every class but
+    // positive normal and positive denormal) found with vfpclasspd $0xdf, as in Intel's code
+    for (; i + N <= len; i += N) {
+        const auto v = hn::LoadU(d, x + i);
+        hn::StoreU(Log2Core<false>(d, v), d, y + i);
+        if (HWY_UNLIKELY(!hn::AllFalse(d, hwymath::HWY_NAMESPACE::FpClass<0xdf>(v)))) Log2FixSpecial(x + i, y + i, N);
+    }
+#else
+    const auto dbl_min = hn::Set(d, 0x1p-1022), inf = hn::Inf(d);
     for (; i + N <= len; i += N) {
         const auto v = hn::LoadU(d, x + i);
         if (HWY_LIKELY(hn::AllTrue(d, hn::And(hn::Ge(v, dbl_min), hn::Lt(v, inf))))) {
@@ -87,6 +99,7 @@ void Log2Array(const double *HWY_RESTRICT x, double *HWY_RESTRICT y, size_t len)
             Log2FixSpecial(x + i, y + i, N);
         }
     }
+#endif
     if (i < len) {
         const size_t rem = len - i;
         const auto v = hn::LoadN(d, x + i, rem);

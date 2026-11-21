@@ -1,6 +1,8 @@
 // Per-target helpers shared by the Highway versions of SVML's log, log2, log10 and log1p
 // (functions/{log,log2,log10,log1p}/hwy/hwy_*.cc): exact emulations of the AVX-512-only operations of the
-// SVML algorithm. Re-included once per target by foreach_target.h (include guard toggled per target).
+// SVML algorithm, and on AVX-512 targets (HWYMATH_NATIVE_AVX512) the instructions themselves (vgetexppd,
+// vgetmantpd, vrcp14pd, vrndscalepd, vpermt2pd with Intel's unmasked index). Re-included once per target by
+// foreach_target.h (include guard toggled per target).
 // Based on Intel SVML (BSD-3-Clause, Copyright (C) 2023 Intel Corporation); same license.
 
 // clang-format off
@@ -17,14 +19,16 @@
 
 #include "functions/log/hwy/log_tables.h"
 #include "hwy/highway.h"
+#include "hwymath/hwy/avx512_native-inl.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace hwymath_log {
 namespace HWY_NAMESPACE {
 namespace hn = hwy::HWY_NAMESPACE;
 
-// v[i] = tab[idx[i]] for a 16-entry table (vpermt2pd on AVX-512), idx < 16. pad: the table repeated to
-// 64 entries, for vectors of 16 or more lanes. The lane count may be a run-time value (SVE, RVV).
+// v[i] = tab[idx[i]] for a 16-entry table (vpermt2pd on AVX-512), idx < 16 (on AVX-512 targets only the
+// low 4 bits of idx are used, as by vpermt2pd: idx may be RoundedRcp14's unmasked index). pad: the table
+// repeated to 64 entries, for vectors of 16 or more lanes. The lane count may be a run-time value (SVE, RVV).
 template <class D, class VU>
 HWY_INLINE hn::VFromD<D> Lookup16(D d, const double *HWY_RESTRICT tab, const double *HWY_RESTRICT pad, VU idx) {
     const hn::RebindToSigned<D> di;
@@ -34,8 +38,12 @@ HWY_INLINE hn::VFromD<D> Lookup16(D d, const double *HWY_RESTRICT tab, const dou
         return hn::TableLookupLanes(hn::LoadU(d, pad), hn::IndicesFromVec(d, hn::BitCast(di, idx)));
     }
     if (N == 8) {  // two vectors: vpermt2pd on AVX-512
+#if HWYMATH_NATIVE_AVX512
+        return hn::VFromD<D>{_mm512_permutex2var_pd(hn::LoadU(d, tab).raw, idx.raw, hn::LoadU(d, tab + 8).raw)};
+#else
         return hn::TwoTablesLookupLanes(d, hn::LoadU(d, tab), hn::LoadU(d, tab + 8),
                                         hn::IndicesFromVec(d, hn::BitCast(di, idx)));
+#endif
     }
     if (N == 4 || N == 2) {  // 16/(2N) two-vector lookups, then selects on the high index bits
         const auto lane = hn::IndicesFromVec(d, hn::BitCast(di, hn::And(idx, hn::Set(du, 2 * N - 1))));
@@ -81,15 +89,15 @@ HWY_INLINE VU32 Lookup32U32(D32 d32, const uint32_t *HWY_RESTRICT tab, const uin
 // rcp = vrndscalepd(vrcp14pd(m), RN to 1/32) = k/32 for m in [1, 2), computed exactly from the thresholds
 // in rcp14_thresholds.h, and the table index j = top 4 mantissa bits of rcp = k mod 16. Integer operations
 // on the high 32 bits of m (see rcp14_thresholds.h: kRcpBins). For any other bit pattern of m (special lanes)
-// the results are finite garbage with an index < 16.
+// the results are finite garbage with an index < 16. On AVX-512 targets: Intel's instructions, and idx is
+// Intel's unmasked index bits(rcp) >> 48 (its low 4 bits are k mod 16; only Lookup16 may use it).
 template <class D, class V = hn::VFromD<D>, class VU = hn::VFromD<hn::RebindToUnsigned<D>>>
 HWY_INLINE void RoundedRcp14(D d, V m, V &rcp, VU &idx) {
     const hn::RebindToUnsigned<D> du;
-#if HWY_TARGET <= HWY_AVX3
-    // the instructions themselves: rndscale to 1/32 (RN) = Round(32*rcp14)/32, both scalings exact; k = 16..32
-    const auto k = hn::Round(hn::Mul(hn::ApproximateReciprocal(m), hn::Set(d, 32.0)));
-    rcp = hn::Mul(k, hn::Set(d, 1.0 / 32));
-    idx = hn::And(hn::BitCast(du, hn::Add(k, hn::Set(d, 0x1p52))), hn::Set(du, 15));  // k mod 16
+#if HWYMATH_NATIVE_AVX512
+    // vrcp14pd, vrndscalepd $0x58 {sae} (to 1/32, RN, no precision exception), vpsrlq $48
+    rcp = hwymath::HWY_NAMESPACE::RoundScale<0x58>(hn::ApproximateReciprocal(m));
+    idx = hn::ShiftRight<48>(hn::BitCast(du, rcp));
 #else
     const hn::Repartition<uint32_t, D> d32;
     const auto mb = hn::BitCast(du, m);
@@ -107,6 +115,11 @@ HWY_INLINE void RoundedRcp14(D d, V m, V &rcp, VU &idx) {
 // x = 2^e * m with m in [1, 2) for finite x > 0 (vgetexppd/vgetmantpd), including denormals.
 template <class D, class V = hn::VFromD<D>>
 HWY_INLINE void ExpMant(D d, V x, V &e, V &m) {
+#if HWYMATH_NATIVE_AVX512
+    (void)d;  // vgetexppd {sae}, vgetmantpd $8 {sae} (exact for denormals too)
+    e = hwymath::HWY_NAMESPACE::GetExp(x);
+    m = hwymath::HWY_NAMESPACE::GetMant<8>(x);
+#else
     const hn::RebindToUnsigned<D> du;
     const auto denorm = hn::Lt(x, hn::Set(d, 0x1p-1022));
     const auto bits = hn::BitCast(du, hn::IfThenElse(denorm, hn::Mul(x, hn::Set(d, 0x1p52)), x));
@@ -114,16 +127,21 @@ HWY_INLINE void ExpMant(D d, V x, V &e, V &m) {
     // 2^52 + biased exponent, exactly, from the exponent bits
     const auto eb = hn::BitCast(d, hn::Or(hn::ShiftRight<52>(bits), hn::Set(du, 0x4330000000000000ULL)));
     e = hn::Sub(eb, hn::IfThenElse(denorm, hn::Set(d, 0x1p52 + 1075.0), hn::Set(d, 0x1p52 + 1023.0)));
+#endif
 }
 
-// Same for normal x > 0 only (log1p: 1 + x >= 2^-53).
+// Same for normal x > 0 only (log1p: 1 + x >= 2^-53); on AVX-512 targets the same as ExpMant.
 template <class D, class V = hn::VFromD<D>>
 HWY_INLINE void ExpMantNormal(D d, V x, V &e, V &m) {
+#if HWYMATH_NATIVE_AVX512
+    ExpMant(d, x, e, m);
+#else
     const hn::RebindToUnsigned<D> du;
     const auto bits = hn::BitCast(du, x);
     m = hn::BitCast(d, hn::Or(hn::And(bits, hn::Set(du, 0x000fffffffffffffULL)), hn::Set(du, 0x3ff0000000000000ULL)));
     const auto eb = hn::BitCast(d, hn::Or(hn::ShiftRight<52>(bits), hn::Set(du, 0x4330000000000000ULL)));
     e = hn::Sub(eb, hn::Set(d, 0x1p52 + 1023.0));
+#endif
 }
 
 }  // namespace HWY_NAMESPACE
