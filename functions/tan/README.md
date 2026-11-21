@@ -66,7 +66,8 @@ AVX2; no gathers), b[i]*l with `MulEven`, denormal inputs by scaling with 2^52, 
 selects.
 
 **Verification.** `test_rcp14` compares the reference with `vrcp14pd` (here: Intel SDE `-spr`) and
-`hwy_test` compares the Highway emulation with the reference on every target, on 2,474,579 inputs
+`hwy_test` compares the Highway emulation with the reference on every target (AVX-512 targets use
+`vrcp14pd` itself, so there it checks the instruction), on 2,474,579 inputs
 (`tests/rcp14_inputs.h`): all 2^16 leading fraction patterns at 10 exponents including those with special
 handling (1, 2, 0x3fe, 0x3ff, 0x400, 0x7fc, 0x7fd, 0x7fe), both signs, with and without random ignored
 bits; denormals with every leading pattern after normalization; every exponent with random fractions;

@@ -52,6 +52,10 @@ HWY_INLINE hn::VFromD<D> Nibble(D d, VU k, const uint64_t *w) {
 // VRCP14PD for positive normal x whose reciprocal is normal (2^-1022 < 1/x), bit-exact.
 template <class D>
 HWY_INLINE hn::VFromD<D> Rcp14(D d, hn::VFromD<D> x) {
+#if HWY_TARGET <= HWY_AVX3  // the instruction itself (this function emulates it bit-exactly)
+    (void)d;
+    return hn::ApproximateReciprocal(x);
+#else
     const hn::RebindToUnsigned<D> du;
     const auto u = hn::BitCast(du, x);
     const auto m = hn::And(u, hn::Set(du, 0x000fffffffffffffULL));
@@ -73,12 +77,17 @@ HWY_INLINE hn::VFromD<D> Rcp14(D d, hn::VFromD<D> x) {
     rb = hn::IfThenElse(hn::Eq(m, hn::Zero(du)), hn::Set(du, 1041ULL << 52), rb);
     // r*2^-18 * 2^(1023 - e): add (1005 - e) to the exponent field (mod 2^64)
     return hn::BitCast(d, hn::Add(rb, hn::ShiftLeft<52>(hn::Sub(hn::Set(du, 1005), e))));
+#endif
 }
 
 // VRSQRT14PD for x = +-0 (+-inf), +inf (+0), positive normal x (bit-exact) and NaN (x itself, not
 // quieted). Negative and denormal inputs are not emulated.
 template <class D>
 HWY_INLINE hn::VFromD<D> Rsqrt14(D d, hn::VFromD<D> x) {
+#if HWY_TARGET <= HWY_AVX3  // the instruction itself (this function emulates it bit-exactly)
+    (void)d;
+    return hn::ApproximateReciprocalSqrt(x);
+#else
     const hn::RebindToUnsigned<D> du;
     const hn::RebindToSigned<D> di;
     const auto u = hn::BitCast(du, x);
@@ -119,6 +128,7 @@ HWY_INLINE hn::VFromD<D> Rsqrt14(D d, hn::VFromD<D> x) {
                          hn::BitCast(d, hn::Or(hn::Xor(u, abs), hn::Set(du, 0x7ff0000000000000ULL))), res);
     res = hn::IfThenElse(hn::RebindMask(d, hn::Eq(u, hn::Set(du, 0x7ff0000000000000ULL))), hn::Zero(d), res);
     return hn::IfThenElse(hn::IsNaN(x), x, res);
+#endif
 }
 
 // VGETEXPPD for positive normal x: the unbiased exponent as a double
