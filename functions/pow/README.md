@@ -128,7 +128,8 @@ occurs in callout lanes. The emulation does not reproduce it, but |S| > 1021.5 h
 ### Verification of the emulated operations
 
 With AVX-512 (or under SDE), `hwy_test` also runs each emulated operation of every target against the
-real instruction on dedicated operands. These cover every 16-bit mantissa prefix for the reciprocal;
+real instruction on dedicated operands. (AVX-512 targets use `vrcp14pd` itself for the rounded reciprocal, so
+for that operation the AVX2 row is the one that tests the emulation.) These cover every 16-bit mantissa prefix for the reciprocal;
 cancellation, small and large addends, exact products and overflowing products for mul/fma RZ; all
 relative scales for add RZ; and multiples of 1/16 ± ulps, tiny values and (−1/16, 0) for reduce. This
 matters because end-to-end comparisons are weak evidence here. Replacing an RZ by RN, or dropping the

@@ -43,6 +43,10 @@ namespace hn = hwy::HWY_NAMESPACE;
 
 template <class D>
 HWY_INLINE hn::VFromD<D> Rcp14(D d, hn::VFromD<D> x) {
+#if HWY_TARGET <= HWY_AVX3  // the instruction itself (this function emulates it bit-exactly)
+    (void)d;
+    return hn::ApproximateReciprocal(x);
+#else
     const hn::RebindToUnsigned<D> du;
     const hn::RebindToSigned<D> di;
     const hn::Repartition<uint32_t, decltype(du)> d32;
@@ -85,6 +89,7 @@ HWY_INLINE hn::VFromD<D> Rcp14(D d, hn::VFromD<D> x) {
     const auto nan = hn::Gt(ax, hn::Set(du, 0x7ff0000000000000ULL));
     res = hn::IfThenElse(infnan, hn::IfThenElse(nan, hn::Or(xb, hn::Set(du, 0x0008000000000000ULL)), sign), res);
     return hn::BitCast(d, res);
+#endif
 }
 
 // The same for inputs with biased exponent in [1, 0x7fc] (normal, with a normal reciprocal); other
@@ -92,6 +97,10 @@ HWY_INLINE hn::VFromD<D> Rcp14(D d, hn::VFromD<D> x) {
 // range (functions/tan/README.md).
 template <class D>
 HWY_INLINE hn::VFromD<D> Rcp14Normal(D d, hn::VFromD<D> x) {
+#if HWY_TARGET <= HWY_AVX3  // the instruction itself (this function emulates it bit-exactly)
+    (void)d;
+    return hn::ApproximateReciprocal(x);
+#else
     const hn::RebindToUnsigned<D> du;
     const hn::Repartition<uint32_t, decltype(du)> d32;
     using VU = hn::VFromD<decltype(du)>;
@@ -112,6 +121,7 @@ HWY_INLINE hn::VFromD<D> Rcp14Normal(D d, hn::VFromD<D> x) {
                            hn::Set(du, 0x7fc0000000000000ULL));
     const VU sgn = hn::And(xb, hn::Set(du, 0x8000000000000000ULL));
     return hn::BitCast(d, hn::Or(sgn, hn::Sub(sum, hn::Xor(se, sgn))));
+#endif
 }
 
 #endif  // HWY_NATIVE_FMA && HWY_HAVE_FLOAT64

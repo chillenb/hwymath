@@ -6,6 +6,7 @@
 //   vrcp14pd + vrndscalepd the rounded reciprocal depends only on the top 16 fraction bits of the
 //                          mantissa (Intel's reference implementation, verified exhaustively under SDE);
 //                          round(32/q) on the truncated mantissa q, corrected near the 32 switch points
+//                          (AVX-512 targets use the instructions themselves)
 //                          with a table (rcp14_switch.inc)
 //   {rz-sae} mul/fma/add   round-to-nearest result, stepped toward zero by one ulp when the exact error
 //                          (TwoProduct / TwoSum / ErrFma) has the opposite sign
@@ -122,6 +123,10 @@ HWY_INLINE V<D> FmaRZ(D d, V<D> a, V<D> b, V<D> c) {
 // half-integer; the switch points are at most 3.5 prefixes = 0.0034 in 32/q from the exact midpoints)
 template <class D>
 HWY_INLINE V<D> RcpRounded(D d, V<D> mant) {
+#if HWY_TARGET <= HWY_AVX3
+    // the instructions themselves: rndscale to 1/32 (RN) = Round(32*rcp14)/32, both scalings exact
+    return hn::Mul(hn::Round(hn::Mul(hn::ApproximateReciprocal(mant), hn::Set(d, 32.0))), hn::Set(d, 1.0 / 32));
+#else
     const hn::RebindToUnsigned<D> du;
     const auto q = hn::BitCast(d, hn::And(hn::BitCast(du, mant), hn::Set(du, ~((uint64_t{1} << 36) - 1))));
     const auto t = hn::Div(hn::Set(d, 32.0), q);  // floor() and round() of it are exact
@@ -136,6 +141,7 @@ HWY_INLINE V<D> RcpRounded(D d, V<D> mant) {
         k = hn::IfThenElse(near, kc, k);
     }
     return hn::Mul(k, hn::Set(d, 1.0 / 32));
+#endif
 }
 
 // RZ(a*b): the error of the RN product is exact (fma)

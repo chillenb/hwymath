@@ -77,11 +77,18 @@ HWY_INLINE hn::VFromD<D> CbrtCore(D d, hn::VFromD<D> x, hn::VFromD<D> ax) {
     const auto m = hn::BitCast(d, hn::Or(hn::And(xb, hn::Set(du, 0x000fffffffffffffULL)),
                                          hn::Set(du, 0x3ff0000000000000ULL)));  // |getmant(x)| in [1, 2)
 
-    // vrndscalepd(vrcp14pd(m), 0x48) = k/16: count the thresholds below m (a true mask is -1)
+    // vrndscalepd(vrcp14pd(m), 0x48) = k/16, k = 8..16; kb = bits of 2^52 + k
+#if HWY_TARGET <= HWY_AVX3
+    // the instructions themselves: Round(16*rcp14)/16, both scalings exact
+    const auto kb = hn::BitCast(di, hn::Add(hn::Round(hn::Mul(hn::ApproximateReciprocal(m), hn::Set(d, 16.0))),
+                                            hn::Set(d, 0x1p52)));
+#else
+    // count the thresholds below m (a true mask is -1)
     auto kb = hn::Set(di, int64_t{0x4330000000000010});  // bits of 2^52 + 16
 #define CBRT_STEP(i) kb = hn::Add(kb, hn::BitCast(di, hn::VecFromMask(d, hn::Ge(m, hn::Set(d, cbrt_rcp14_threshold[i])))))
     CBRT_STEP(0); CBRT_STEP(1); CBRT_STEP(2); CBRT_STEP(3); CBRT_STEP(4); CBRT_STEP(5); CBRT_STEP(6); CBRT_STEP(7);
 #undef CBRT_STEP
+#endif
     const auto rcp = hn::Mul(hn::Sub(hn::BitCast(d, kb), hn::Set(d, 0x1p52)), hn::Set(d, 0.0625));
     const auto idx = hn::And(kb, hn::Set(di, 7));  // k - 8 for k = 8..15 (k = 16: selected below)
     const auto k16 = hn::Lt(m, hn::Set(d, cbrt_rcp14_threshold[0]));

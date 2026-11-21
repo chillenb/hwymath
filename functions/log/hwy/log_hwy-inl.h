@@ -85,6 +85,12 @@ HWY_INLINE VU32 Lookup32U32(D32 d32, const uint32_t *HWY_RESTRICT tab, const uin
 template <class D, class V = hn::VFromD<D>, class VU = hn::VFromD<hn::RebindToUnsigned<D>>>
 HWY_INLINE void RoundedRcp14(D d, V m, V &rcp, VU &idx) {
     const hn::RebindToUnsigned<D> du;
+#if HWY_TARGET <= HWY_AVX3
+    // the instructions themselves: rndscale to 1/32 (RN) = Round(32*rcp14)/32, both scalings exact; k = 16..32
+    const auto k = hn::Round(hn::Mul(hn::ApproximateReciprocal(m), hn::Set(d, 32.0)));
+    rcp = hn::Mul(k, hn::Set(d, 1.0 / 32));
+    idx = hn::And(hn::BitCast(du, hn::Add(k, hn::Set(d, 0x1p52))), hn::Set(du, 15));  // k mod 16
+#else
     const hn::Repartition<uint32_t, D> d32;
     const auto mb = hn::BitCast(du, m);
     // the bin b = top 5 mantissa bits, in the high 32-bit half of each 64-bit lane (low half: 0)
@@ -95,6 +101,7 @@ HWY_INLINE void RoundedRcp14(D d, V m, V &rcp, VU &idx) {
     const auto jk = hn::Add(hn::And(hn::ShiftRight<32>(e), hn::Set(du, 15)), hn::ShiftRight<63>(diff));  // k - 16, 0..16
     rcp = hn::BitCast(d, hn::Add(hn::Set(du, 0x3fe0000000000000ULL), hn::ShiftLeft<48>(jk)));  // k/32 (k = 32: 1.0)
     idx = hn::And(jk, hn::Set(du, 15));
+#endif
 }
 
 // x = 2^e * m with m in [1, 2) for finite x > 0 (vgetexppd/vgetmantpd), including denormals.
