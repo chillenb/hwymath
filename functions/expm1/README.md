@@ -67,6 +67,17 @@ Everything else is the same sequence of round-to-nearest FMAs (`MulAdd`, `NegMul
 multiplications and additions. Lanes with !(x < 707.703…) use the C callout from `svml/` (an
 out-of-line `cold` function). Targets without FMA (SSE2/SSSE3/SSE4) use `std::expm1`.
 
+**AVX-512 targets** (AVX3, AVX3_DL, AVX3_ZEN4, AVX3_SPR, AVX10_2; `HWYMATH_NATIVE_AVX512` from
+`common/include/hwymath/hwy/avx512_native-inl.h`) use the instructions instead of the emulations above:
+`vpermt2pd` directly on the bits of t (the instruction ignores all but the low 4 index bits, so the
+`And(t, 15)` is gone), `vscalefpd(Th, vmaxpd(N, −128))`, and the callout lanes are found with one
+`vcmppd` NLT_UQ (`_mm512_cmp_pd_mask`; `Not(Lt(...))` compiled to a compare and a `knotb`). The raw
+`vpermt2pd` and the NLT_UQ compare are small local wrappers in `hwy_expm1.cc` (Highway's lookups require
+in-range indices). The AVX3 loop now has 37 vector arithmetic/mask instructions per 8 values (before: 42),
+Intel's main path 38 (its `vandpd` + `vorpd` of the sign are one `vpternlogq` here, its `kmovw` + `testl`
+one `kortestb`); the remaining difference is register copies (Highway keeps the constants in registers,
+Intel reloads them).
+
 Default NaN: for x = −inf (and for x = −DBL_MAX, where x·log2(e) overflows), R or Rl is an invalid
 operation (inf − inf). x86 produces the default NaN 0xfff8…, and AArch64 produces 0x7ff8…. After
 the `0xbfff…` mask, R' or Rl is then −1.5 on x86 and +1.5 on AArch64. These values are scaled by
