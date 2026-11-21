@@ -63,6 +63,15 @@ results are bit-identical to Intel's (`test_cbrt8`).
 **bit-identical to Intel's `__svml_cbrt8_ha`** (as executed by Intel CPUs / Intel SDE). Targets without
 FMA (SSE2/SSSE3/SSE4, EMU128, SCALAR) fall back to `std::cbrt`.
 
+**AVX-512 targets** (AVX3, AVX3_DL, AVX3_ZEN4, AVX3_SPR, AVX10_2; `HWYMATH_NATIVE_AVX512` from
+`common/include/hwymath/hwy/avx512_native-inl.h`) emulate nothing: `CbrtNative` is Intel's instruction
+sequence (`vgetexppd`, `vgetmantpd`, `vrcp14pd`, `vrndscalepd` 0x48 and 9, `vpermpd`/`vpermt2pd` directly on
+the raw index bits, `vscalefpd`), with neither the all-normal check nor the special-value select, since the
+instructions handle denormals, 0, ±inf and NaN themselves. The raw `vpermpd`/`vpermt2pd` (Highway's lookups
+require in-range indices) are small local wrappers in `hwy_cbrt.cc`. The AVX3 loop now has 33 vector
+arithmetic instructions per 8 values (before: 49 on the all-normal fast path), Intel's main path 34 (its
+`vandpd` + `vorpd` of the sign are one `vpternlogq` here). The table below describes the other targets.
+
 | AVX-512 feature | emulation |
 |---|---|
 | `vgetexppd`, `vgetmantpd` | exponent and mantissa bits. Denormals are first multiplied by 2^64 (exact) and the exponent corrected. ES = 1.5·2^52 + E is built directly as bits (`vaddpd` is exact there) |
@@ -99,11 +108,11 @@ more than the 16 prefix bits.
 The thresholds were measured on Intel SDE's `vrcp14pd`. `test_rcp14` has since passed natively in CI on an
 Intel Xeon 6975P-C, and the same instruction follows Intel's reference algorithm exactly on AMD Zen 4 and Zen 5
 (EPYC 9V74, 9V45: `test_approx14`, `verify_rcp14`), so the thresholds hold there too. On AVX-512 targets the
-Highway version now uses the instruction itself (`Round(16·vrcp14pd(m))/16`); the thresholds serve the
-other targets.
+Highway version uses the instructions themselves (`vrndscalepd(vrcp14pd(m), 0x48)`); the thresholds serve
+the other targets.
 
 Performance notes:
-- A fast path for vectors whose lanes are all normal skips the denormal scaling and the final special-value
+- Non-AVX-512 targets: a fast path for vectors whose lanes are all normal skips the denormal scaling and the final special-value
   select (2.75 → 2.28 ns/value on AVX2). Other vectors take the general path. Neither path needs the
   scalar routine.
 - Padded lookup tables are `constexpr` (the generated `.inc` tables become `constexpr` in C++ via

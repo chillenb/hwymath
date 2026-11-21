@@ -8,6 +8,8 @@
 //   - vpermt2pd (16-entry tables): TableLookupLanes / TwoTablesLookupLanes (+ selects on 4/2-lane
 //     vectors), no gathers;
 //   - vblendmpd / vmaxpd / bitwise masks: IfThenElse / Max / And / Or.
+// On AVX-512 targets (HWYMATH_NATIVE_AVX512) the instructions themselves are used instead: vpermt2pd on
+// the raw bits of t (no index masking), vscalefpd, and one vcmppd (NLT_UQ) for the callout lanes.
 // Everything else is the same sequence of round-to-nearest FMAs, multiplications and additions.
 // Targets without FMA (SSE2/SSSE3/SSE4) use std::expm1. Lanes with x >= 707.703..., +inf or NaN use
 // the scalar SVML callout (svml_dexpm1_ha_cout_rare). Also exports Highway's own hwy/contrib/math Expm1
@@ -27,6 +29,7 @@ extern "C" int svml_dexpm1_ha_cout_rare(const double *px, double *pr);
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
 #include "hwy/highway.h"
 #include "hwy/contrib/math/math-inl.h"
+#include "hwymath/hwy/avx512_native-inl.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace hwyexpm1 {
@@ -78,6 +81,12 @@ HWY_INLINE void Lookup16(D d, VU j, const double *ta, const double *pa, const do
     }
 }
 
+#if HWYMATH_NATIVE_AVX512
+// vpermt2pd with the raw index vector (the instruction uses only its low 4 bits; Highway's
+// TwoTablesLookupLanes requires in-range indices, which debug builds assert)
+// lanes with !(x < thr) (x >= thr or NaN): one vcmppd NLT_UQ, like Intel's code
+#endif
+
 template <class D>
 HWY_INLINE hn::VFromD<D> AndBits(D d, hn::VFromD<D> v, uint64_t bits) {
     const hn::RebindToUnsigned<D> du;
@@ -90,6 +99,14 @@ HWY_INLINE hn::VFromD<D> Expm1Core(D d, hn::VFromD<D> x) {
     const auto S = hn::Set(d, kShifter);
     const auto t = hn::MulAdd(x, hn::Set(d, kLog2e), S);  // N = t - S: x*log2(e) to a multiple of 1/16
     const auto n = hn::Sub(t, S);
+#if HWYMATH_NATIVE_AVX512
+    const auto tb = hn::BitCast(du, t);  // table index in the low 4 bits
+    auto th = hwymath::HWY_NAMESPACE::Permute2Var(hn::LoadU(d, vTh), tb, hn::LoadU(d, vTh + 8));
+    const auto tlr = hwymath::HWY_NAMESPACE::Permute2Var(hn::LoadU(d, vTlr), tb, hn::LoadU(d, vTlr + 8));
+    const auto sgn = AndBits(d, x, kSignMaskBits);
+    const auto r = hn::NegMulAdd(n, hn::Set(d, kLn2Hi), x);  // R = x - N*ln2_hi
+    th = hwymath::HWY_NAMESPACE::Scalef(th, hn::Max(n, hn::Set(d, kMinN)));  // Th' = Th*2^floor(max(N, -128))
+#else
     hn::VFromD<D> th, tlr;
     Lookup16(d, hn::And(hn::BitCast(du, t), hn::Set(du, 15)), vTh, ThPad(), vTlr, TlrPad(), th, tlr);
     const auto sgn = AndBits(d, x, kSignMaskBits);
@@ -97,6 +114,7 @@ HWY_INLINE hn::VFromD<D> Expm1Core(D d, hn::VFromD<D> x) {
     // vscalefpd(Th, max(N, -128)): max(N, -128) + S holds 16*(N + 1023) in its low mantissa bits
     const auto tc = hn::BitCast(du, hn::Add(hn::Max(n, hn::Set(d, kMinN)), S));
     th = hn::Mul(th, hn::BitCast(d, hn::ShiftLeft<52>(hn::ShiftRight<4>(tc))));
+#endif
     auto rr = hn::NegMulAdd(n, hn::Set(d, kLn2Lo), r);  // R' = R - N*ln2_lo
     const auto small = hn::Lt(th, hn::Set(d, 1.0));
     auto rl = hn::Sub(r, rr);
@@ -130,7 +148,12 @@ void Expm1Array(const double *HWY_RESTRICT x, double *HWY_RESTRICT y, size_t len
     for (; i + N <= len; i += N) {
         const auto v = hn::LoadU(d, x + i);
         hn::StoreU(Expm1Core(d, v), d, y + i);
-        if (HWY_UNLIKELY(!hn::AllFalse(d, hn::Not(hn::Lt(v, thr))))) FixSpecial(x + i, y + i, N);
+#if HWYMATH_NATIVE_AVX512
+        const auto special = hwymath::HWY_NAMESPACE::Cmp<_CMP_NLT_UQ>(v, thr);
+#else
+        const auto special = hn::Not(hn::Lt(v, thr));
+#endif
+        if (HWY_UNLIKELY(!hn::AllFalse(d, special))) FixSpecial(x + i, y + i, N);
     }
     if (i < len) {
         const size_t rem = len - i;

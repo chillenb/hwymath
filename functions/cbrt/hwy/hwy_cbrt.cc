@@ -11,6 +11,9 @@
 //   vpermpd/vpermt2pd     TableLookupLanes/TwoTablesLookupLanes on 4- and 8-entry tables (k = 16 by a select)
 //   vscalefpd             multiplication by 2^K built from exponent bits (the result is always normal)
 //   0, inf, NaN           x + x, which is what the AVX-512 code returns for them (it needs no callout)
+// On AVX-512 targets (HWYMATH_NATIVE_AVX512) none of this is emulated: CbrtNative is Intel's instruction
+// sequence (vgetexppd, vgetmantpd, vrcp14pd, vrndscalepd, vpermpd, vpermt2pd, vscalefpd), with no
+// special-value handling, exactly like the assembly.
 // Targets without FMA (SSE2/SSSE3/SSE4, EMU128, SCALAR): std::cbrt.
 // Based on Intel SVML (BSD-3-Clause, Copyright (C) 2023 Intel Corporation); same license.
 
@@ -24,13 +27,72 @@
 #define HWY_TARGET_INCLUDE "functions/cbrt/hwy/hwy_cbrt.cc"
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
 #include "hwy/highway.h"
+#include "hwymath/hwy/avx512_native-inl.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace hwycbrt {
 namespace HWY_NAMESPACE {
 namespace hn = hwy::HWY_NAMESPACE;
 
-#if HWY_NATIVE_FMA && HWY_HAVE_FLOAT64
+#if HWYMATH_NATIVE_AVX512
+
+// vpermpd / vpermt2pd with the raw index vector: the instructions use only its low 3 / 4 bits, so no index
+// masking is needed (Highway's TableLookupLanes requires in-range indices, which debug builds assert)
+
+// Intel's __svml_cbrt8_ha instruction for instruction (operation order of svml/svml_cbrt_d_ha.c). Denormals
+// are handled by vgetexppd/vgetmantpd, and 0, +-inf, NaN come out right by themselves: no branch, no select.
+template <class D>
+HWY_INLINE hn::VFromD<D> CbrtNative(D d, hn::VFromD<D> x) {
+    namespace nat = hwymath::HWY_NAMESPACE;
+    const hn::RebindToUnsigned<D> du;
+    const auto E = nat::GetExp(x);                                             // floor(log2|x|)
+    const auto m = nat::GetMant<0>(x);                                         // +-[1, 2), sign of x
+    const auto rcp = hn::ApproximateReciprocal(m);                             // vrcp14pd
+    const auto ES = hn::Add(E, hn::Set(d, kShifter));                          // 1.5*2^52 + E
+    const auto sgn = hn::And(x, hn::BitCast(d, hn::Set(du, 0x8000000000000000ULL)));
+    const auto rcpR = nat::RoundScale<0x48>(rcp);                              // to 4 fractional bits
+    const auto t = hn::MulSub(hn::Set(d, kOneThird), ES, hn::Set(d, kTwo51));  // E/3 + 1/4 (+ tiny)
+    const auto R = hn::MulSub(m, rcpR, hn::Set(d, kOne));                      // m*rcp - 1
+    const auto K = nat::RoundScale<0x09>(t);                                   // floor(E/3)
+    const auto idx = hn::ShiftRight<49>(hn::BitCast(du, rcpR));                // k - 8 in bits 0..3
+    const auto jS = hn::NegMulAdd(hn::Set(d, kThree), K, ES);                  // 1.5*2^52 + (E mod 3)
+    auto p = hn::MulAdd(hn::Set(d, kC9), R, hn::Set(d, kC8));
+    const auto j = hn::BitCast(du, jS);
+    const auto Sh = hwymath::HWY_NAMESPACE::PermuteVar(hn::LoadU(d, vSh), j);
+    const auto Th = hwymath::HWY_NAMESPACE::Permute2Var(hn::LoadU(d, vTh), idx, hn::LoadU(d, vTh + 8));
+    auto tl_hi = hn::LoadU(d, vTl + 8);
+    __asm__("" : "+v"(tl_hi.raw));  // all zero: GCC would rebuild it with a vxorpd in every iteration
+    const auto Tl = hwymath::HWY_NAMESPACE::Permute2Var(hn::LoadU(d, vTl), idx, tl_hi);
+    const auto Sl = hwymath::HWY_NAMESPACE::PermuteVar(hn::LoadU(d, vSl), j);
+
+    const auto ShTh = hn::Mul(Sh, Th);
+    const auto R2 = hn::Mul(R, R);
+    const auto q45 = hn::MulAdd(hn::Set(d, kC5), R, hn::Set(d, kC4));
+    const auto q67 = hn::MulAdd(hn::Set(d, kC7), R, hn::Set(d, kC6));
+    p = hn::MulAdd(R2, p, q67);
+    auto lo = hn::MulSub(Th, Sh, ShTh);  // (Sh*Th)_low
+    p = hn::MulAdd(R2, p, q45);
+    lo = hn::MulAdd(Tl, Sh, lo);
+    lo = hn::MulAdd(Th, Sl, lo);
+    const auto q23 = hn::MulAdd(hn::Set(d, kC3), R, hn::Set(d, kC2));
+    p = hn::MulAdd(R2, p, q23);
+    const auto q01 = hn::MulAdd(hn::Set(d, kC1), R, hn::Set(d, kC0));
+    const auto ShThR = hn::Mul(ShTh, R);
+    p = hn::MulAdd(R2, p, q01);
+    lo = hn::MulAdd(p, ShThR, lo);
+    const auto y = hn::Add(lo, ShTh);
+    return hn::Or(nat::Scalef(y, K), sgn);
+}
+
+void CbrtArray(const double *HWY_RESTRICT x, double *HWY_RESTRICT y, size_t len) {
+    const hn::ScalableTag<double> d;
+    const size_t N = hn::Lanes(d);
+    size_t i = 0;
+    for (; i + N <= len; i += N) hn::StoreU(CbrtNative(d, hn::LoadU(d, x + i)), d, y + i);
+    if (i < len) hn::StoreN(CbrtNative(d, hn::LoadN(d, x + i, len - i)), d, y + i, len - i);
+}
+
+#elif HWY_NATIVE_FMA && HWY_HAVE_FLOAT64
 
 // lookup of a 4-entry table (padded copy in pad), idx < 4
 template <class D, class VI>
@@ -78,17 +140,11 @@ HWY_INLINE hn::VFromD<D> CbrtCore(D d, hn::VFromD<D> x, hn::VFromD<D> ax) {
                                          hn::Set(du, 0x3ff0000000000000ULL)));  // |getmant(x)| in [1, 2)
 
     // vrndscalepd(vrcp14pd(m), 0x48) = k/16, k = 8..16; kb = bits of 2^52 + k
-#if HWY_TARGET <= HWY_AVX3
-    // the instructions themselves: Round(16*rcp14)/16, both scalings exact
-    const auto kb = hn::BitCast(di, hn::Add(hn::Round(hn::Mul(hn::ApproximateReciprocal(m), hn::Set(d, 16.0))),
-                                            hn::Set(d, 0x1p52)));
-#else
     // count the thresholds below m (a true mask is -1)
     auto kb = hn::Set(di, int64_t{0x4330000000000010});  // bits of 2^52 + 16
 #define CBRT_STEP(i) kb = hn::Add(kb, hn::BitCast(di, hn::VecFromMask(d, hn::Ge(m, hn::Set(d, cbrt_rcp14_threshold[i])))))
     CBRT_STEP(0); CBRT_STEP(1); CBRT_STEP(2); CBRT_STEP(3); CBRT_STEP(4); CBRT_STEP(5); CBRT_STEP(6); CBRT_STEP(7);
 #undef CBRT_STEP
-#endif
     const auto rcp = hn::Mul(hn::Sub(hn::BitCast(d, kb), hn::Set(d, 0x1p52)), hn::Set(d, 0.0625));
     const auto idx = hn::And(kb, hn::Set(di, 7));  // k - 8 for k = 8..15 (k = 16: selected below)
     const auto k16 = hn::Lt(m, hn::Set(d, cbrt_rcp14_threshold[0]));

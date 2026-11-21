@@ -62,7 +62,7 @@ SDE for AVX2, AVX3, AVX3_DL, AVX3_SPR (`-spr`) and AVX10_2 (`-dmr`) against the 
 QEMU for AArch64 NEON, SVE and SVE2 at 128/256/512/2048-bit vectors against x86-64 (`make log-xcheck`).
 Targets without FMA (SSE2/SSSE3/SSE4) use `std::log`.
 
-The AVX-512-only operations, emulated exactly (`hwy/log_hwy-inl.h`):
+The AVX-512-only operations, emulated exactly on every target except the AVX-512 ones (`hwy/log_hwy-inl.h`):
 
 | AVX-512 | emulation |
 |---|---|
@@ -73,6 +73,15 @@ The AVX-512-only operations, emulated exactly (`hwy/log_hwy-inl.h`):
 | masked `vaddpd` (E + 1 if rcp < 0.75) | `MaskedAddOr` |
 | masked `vxorpd` (Rh = 0 in special lanes) | not needed: those lanes are overwritten by the callout |
 | `{rn-sae}` / `{sae}` | all rounding is round-to-nearest, so plain `MulAdd`/`MulSub`/`Add`/`Mul` (fused on FMA targets) |
+
+On the AVX-512 targets (AVX3, AVX3_DL, AVX3_ZEN4, AVX3_SPR, AVX10_2; `HWYMATH_NATIVE_AVX512` from
+`common/include/hwymath/hwy/avx512_native-inl.h`) the helpers use Intel's instructions instead: `vgetexppd` and
+`vgetmantpd $8` {sae} (exact for denormals too, so there is only one vector path), `vrcp14pd` +
+`vrndscalepd $0x58` {sae}, the table index `vpsrlq $48` of rcp without masking (as in Intel's code: `vpermt2pd`
+only reads the low 4 bits; `Lookup16` calls `_mm512_permutex2var_pd` directly so that the unmasked index is
+legitimate) and `vfpclasspd $0xdf` for the special-lane test. The AVX3 loop then has 29 vector/mask instructions
+besides loads, stores and register moves (37 with the emulations), as many as Intel's main path less its
+`vxorpd` (30, counting `kmovw` like our `kortestb`).
 
 ### `vrcp14pd`: why exact emulation is possible
 

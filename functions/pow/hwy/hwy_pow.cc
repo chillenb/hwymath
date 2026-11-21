@@ -1,7 +1,8 @@
 // Portable (Google Highway) version of Intel SVML's AVX-512 high-accuracy pow (svml/svml_pow_d_ha.c), with
-// run-time dispatch to the best target. Same algorithm, constants and operation order; the AVX-512-only
-// operations are emulated exactly, so on every target with true FMA (HWY_NATIVE_FMA) the results are
-// bit-identical to Intel's __svml_pow8_ha:
+// run-time dispatch to the best target. Same algorithm, constants and operation order. AVX-512 targets
+// (HWYMATH_NATIVE_AVX512) use the assembly's instructions; elsewhere the AVX-512-only operations are emulated
+// exactly, so on every target with true FMA (HWY_NATIVE_FMA) the results are bit-identical to Intel's
+// __svml_pow8_ha:
 //   vgetmantpd/vgetexppd   exponent and mantissa bits (denormals scaled by 2^52 first)
 //   vrcp14pd + vrndscalepd the rounded reciprocal depends only on the top 16 fraction bits of the
 //                          mantissa (Intel's reference implementation, verified exhaustively under SDE);
@@ -30,6 +31,7 @@ extern "C" int svml_dpow_ha_cout_rare(const double *px, const double *py, double
 #define HWY_TARGET_INCLUDE "functions/pow/hwy/hwy_pow.cc"
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
 #include "hwy/highway.h"
+#include "hwymath/hwy/avx512_native-inl.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace hwypow {
@@ -104,6 +106,10 @@ HWY_INLINE V<D> SumErr(V<D> a, V<D> b, V<D> s) {
 // RZ(a*b + c): sign of the exact error of the RN fma from ErrFma (Boldo & Muller 2011)
 template <class D>
 HWY_INLINE V<D> FmaRZ(D d, V<D> a, V<D> b, V<D> c) {
+#if HWYMATH_NATIVE_AVX512
+    (void)d;
+    return hwymath::HWY_NAMESPACE::MulAddR<hwymath::HWY_NAMESPACE::kRZ>(a, b, c);  // vfmadd {rz-sae}
+#else
     const auto r1 = hn::MulAdd(a, b, c);
     const auto u1 = hn::Mul(a, b);
     const auto u2 = hn::MulSub(a, b, u1);
@@ -116,6 +122,7 @@ HWY_INLINE V<D> FmaRZ(D d, V<D> a, V<D> b, V<D> c) {
     // r2 = 0 only if g + zz = 0 (then r3 = 0): the sign of the error is the sign of r2 = RN(g + zz)
     // (r1 = 0 with a nonzero error only happens if the error underflows; leave such results alone)
     return TowardZero(d, r1, hn::IfThenZeroElse(hn::Eq(r1, hn::Zero(d)), hn::Add(g, zz)));
+#endif
 }
 
 // vrndscalepd(vrcp14pd(m), 1/32, RN) for m in [1/2, 1): depends only on q = m truncated to 16 fraction bits
@@ -123,9 +130,10 @@ HWY_INLINE V<D> FmaRZ(D d, V<D> a, V<D> b, V<D> c) {
 // half-integer; the switch points are at most 3.5 prefixes = 0.0034 in 32/q from the exact midpoints)
 template <class D>
 HWY_INLINE V<D> RcpRounded(D d, V<D> mant) {
-#if HWY_TARGET <= HWY_AVX3
-    // the instructions themselves: rndscale to 1/32 (RN) = Round(32*rcp14)/32, both scalings exact
-    return hn::Mul(hn::Round(hn::Mul(hn::ApproximateReciprocal(mant), hn::Set(d, 32.0))), hn::Set(d, 1.0 / 32));
+#if HWYMATH_NATIVE_AVX512
+    // the instructions themselves: vrcp14pd, vrndscalepd 0x58 (to 1/32, RN, {sae})
+    (void)d;
+    return hwymath::HWY_NAMESPACE::RoundScale<0x58>(hn::ApproximateReciprocal(mant));
 #else
     const hn::RebindToUnsigned<D> du;
     const auto q = hn::BitCast(d, hn::And(hn::BitCast(du, mant), hn::Set(du, ~((uint64_t{1} << 36) - 1))));
@@ -147,32 +155,66 @@ HWY_INLINE V<D> RcpRounded(D d, V<D> mant) {
 // RZ(a*b): the error of the RN product is exact (fma)
 template <class D>
 HWY_INLINE V<D> MulRZ(D d, V<D> a, V<D> b) {
+#if HWYMATH_NATIVE_AVX512
+    (void)d;
+    return hwymath::HWY_NAMESPACE::MulR<hwymath::HWY_NAMESPACE::kRZ>(a, b);  // vmulpd {rz-sae}
+#else
     const auto p = hn::Mul(a, b);
     return TowardZero(d, p, hn::MulSub(a, b, p));
+#endif
 }
 
 // RZ(a + b) (TwoSum)
 template <class D>
 HWY_INLINE V<D> AddRZ(D d, V<D> a, V<D> b) {
+#if HWYMATH_NATIVE_AVX512
+    (void)d;
+    return hwymath::HWY_NAMESPACE::AddR<hwymath::HWY_NAMESPACE::kRZ>(a, b);  // vaddpd {rz-sae}
+#else
     const auto s = hn::Add(a, b);
     return TowardZero(d, s, SumErr<D>(a, b, s));
+#endif
 }
 
-// vreducepd(s, imm 0x41) = s - floor(16 s)/16 with the subtraction rounded down; also returns floor(16 s)
+// vreducepd(s, imm 0x41) = s - floor(16 s)/16 with the subtraction rounded down, and sh = vaddpd {rd-sae}
+// s + kShifter (= kShifter + floor(16 s)/16: the table index and exponent in its low bits)
 template <class D>
-HWY_INLINE V<D> Reduce16(D d, V<D> s, V<D> &f16) {
+HWY_INLINE V<D> Reduce16(D d, V<D> s, V<D> &sh) {
+#if HWYMATH_NATIVE_AVX512
+    namespace nat = hwymath::HWY_NAMESPACE;
+    sh = nat::AddR<nat::kRD>(s, hn::Set(d, kShifter));
+    return nat::Reduce<0x41>(s);
+#else
     const hn::RebindToUnsigned<D> du;
-    f16 = hn::Floor(hn::Mul(s, hn::Set(d, 16.0)));
+    const auto f16 = hn::Floor(hn::Mul(s, hn::Set(d, 16.0)));
     const auto f = hn::Mul(f16, hn::Set(d, 1.0 / 16));
     auto red = hn::Sub(s, f);  // inexact only for -1/32 < s < 0 (then f = -1/16: Fast2Sum error below)
     const auto rerr = hn::Sub(s, hn::Add(red, f));
     red = hn::IfThenElse(hn::Lt(rerr, hn::Zero(d)), hn::BitCast(d, hn::Sub(hn::BitCast(du, red), hn::Set(du, 1))), red);
-    return hn::IfThenElse(hn::Eq(red, hn::Zero(d)), hn::Set(d, -0.0), red);  // x - x = -0 when rounding down
+    red = hn::IfThenElse(hn::Eq(red, hn::Zero(d)), hn::Set(d, -0.0), red);  // x - x = -0 when rounding down
+    sh = hn::MulAdd(f16, hn::Set(d, 1.0 / 16), hn::Set(d, kShifter));  // = RD(s + shifter), exact
+    return red;
+#endif
 }
+
+#if HWYMATH_NATIVE_AVX512
+// 32-entry lookup as in the assembly: vpermt2pd on index bits 0-3 of both halves, blend on bit 4
+HWY_INLINE hn::Vec512<double> Permute32(const double *tab, hn::Vec512<uint64_t> idx, hn::Mask512<double> hi) {
+    return hn::IfThenElse(hi, hwymath::HWY_NAMESPACE::Lookup16Raw(tab + 16, idx), hwymath::HWY_NAMESPACE::Lookup16Raw(tab, idx));
+}
+// vcmppd _CMP_NLE_UQ: !(a <= b), true also for NaN (one compare, where Highway needs Le and Not)
+#endif
 
 template <class D>
 HWY_INLINE V<D> PowCore(D d, V<D> x, V<D> y, hn::MFromD<D> &callout) {
     const hn::RebindToUnsigned<D> du;
+#if HWYMATH_NATIVE_AVX512
+    // Intel's instructions: vfpclasspd, vgetmantpd/vgetexppd {sae}
+    namespace nat = hwymath::HWY_NAMESPACE;
+    const auto special = hn::Or(nat::FpClass<0xdf>(x), nat::FpClass<0x99>(y));  // x <= 0, x or y inf/NaN
+    const auto mant = nat::GetMant<0x0a>(x);  // to [1/2, 1) (NaN for negative x: callout lanes)
+    auto expon = nat::GetExp(x);
+#else
     const hn::RebindToSigned<D> di;
     const auto inf = hn::Inf(d);
 
@@ -187,14 +229,24 @@ HWY_INLINE V<D> PowCore(D d, V<D> x, V<D> y, hn::MFromD<D> &callout) {
     const auto mant = hn::BitCast(d, hn::Or(hn::And(xn, hn::Set(du, 0x000fffffffffffffULL)), hn::Set(du, 0x3fe0000000000000ULL)));
     auto expon = hn::Sub(hn::BitCast(d, hn::Or(eb, hn::Set(du, 0x4330000000000000ULL))),
                          hn::IfThenElse(den, hn::Set(d, 0x1p52 + 1075), hn::Set(d, 0x1p52 + 1023)));
+#endif
 
     const auto rcp = RcpRounded(d, mant);
 
     // log2(x)
+#if HWYMATH_NATIVE_AVX512
+    // vpermt2pd ignores the index bits above bit 3: no masking; blend on bit 4 (vpsllq + vpmovq2m)
+    const auto idx = hn::ShiftRight<47>(hn::BitCast(du, rcp));
+    const auto hi16 = hn::MaskFromVec(hn::BitCast(d, hn::ShiftLeft<59>(idx)));
+    const auto th = Permute32(vLogTh, idx, hi16);
+    expon = hn::IfThenElse(hn::Lt(rcp, hn::Set(d, kRcpLimit)), hn::Add(expon, hn::Set(d, kOne)), expon);
+    const auto tl = Permute32(vLogTl, idx, hi16);
+#else
     const auto idx = hn::And(hn::ShiftRight<47>(hn::BitCast(du, rcp)), hn::Set(du, 31));
     const auto th = Lookup<32>(d, vLogTh, kLogThPad.v, idx);
     expon = hn::IfThenElse(hn::Lt(rcp, hn::Set(d, kRcpLimit)), hn::Add(expon, hn::Set(d, kOne)), expon);
     const auto tl = Lookup<32>(d, vLogTl, kLogTlPad.v, idx);
+#endif
     const auto mh = hn::Mul(mant, hn::Set(d, kHalf));
     const auto R = hn::MulSub(rcp, mh, hn::Set(d, kHalf));  // (rcp*m - 1)/2, exact
 
@@ -224,7 +276,7 @@ HWY_INLINE V<D> PowCore(D d, V<D> x, V<D> y, hn::MFromD<D> &callout) {
     const auto low = hn::Add(tlp, low1);
     const auto high = hn::Add(s2, low);
 
-    // y*log2(x) with round-toward-zero emulation
+    // y*log2(x), rounded toward zero ({rz-sae} on AVX-512, emulated elsewhere)
     const auto P = MulRZ(d, y, high);
     const auto tlh = hn::Sub(high, s2);
     const auto zl = hn::MulSub(y, high, P);  // exact (the RZ is a no-op)
@@ -234,18 +286,26 @@ HWY_INLINE V<D> PowCore(D d, V<D> x, V<D> y, hn::MFromD<D> &callout) {
     const auto sp = hn::Sub(S, P);
 
     // 2^(S + low)
-    V<D> f16;
-    const auto red = Reduce16(d, S, f16);
-    const auto sh = hn::MulAdd(f16, hn::Set(d, 1.0 / 16), hn::Set(d, kShifter));  // = RD(S + shifter)
+    V<D> sh;
+    const auto red = Reduce16(d, S, sh);
     const auto lw = hn::Sub(T, sp);
     auto re = hn::Add(red, lw);
     re = hn::BitCast(d, hn::And(hn::BitCast(du, re), hn::Set(du, kRMaskBits)));
     const auto shb = hn::BitCast(du, sh);
+#if HWYMATH_NATIVE_AVX512
+    const auto tle = hwymath::HWY_NAMESPACE::Lookup16Raw(vExpTle, shb);
+    const auto the = hwymath::HWY_NAMESPACE::Lookup16Raw(vExpThe, shb);
+#else
     const auto jdx = hn::And(shb, hn::Set(du, 15));
     const auto tle = Lookup<16>(d, vExpTle, kExpTlePad.v, jdx);
     const auto the = Lookup<16>(d, vExpThe, kExpThePad.v, jdx);
+#endif
     const auto re2 = hn::Mul(re, re);
+#if HWYMATH_NATIVE_AVX512
+    const auto range = hwymath::HWY_NAMESPACE::Cmp<_CMP_NLE_UQ>(hn::Abs(S), hn::Set(d, kBound));
+#else
     const auto range = hn::Not(hn::Le(hn::Abs(S), hn::Set(d, kBound)));
+#endif
     auto pq = hn::MulAdd(re, hn::Set(d, kB6), hn::Set(d, kB5));
     const auto q34 = hn::MulAdd(re, hn::Set(d, kB4), hn::Set(d, kB3));
     const auto q12 = hn::MulAdd(re, hn::Set(d, kB2), hn::Set(d, kB1));
@@ -255,7 +315,11 @@ HWY_INLINE V<D> PowCore(D d, V<D> x, V<D> y, hn::MFromD<D> &callout) {
     pq = hn::MulAdd(pq, re, tle);
     pq = hn::MulAdd(pq, the, the);
 
+#if HWYMATH_NATIVE_AVX512
+    callout = hn::Or(special, range);
+#else
     callout = hn::Or(hn::Not(hn::And(x_ok, y_ok)), range);
+#endif
     return hn::Mul(pq, sc);
 }
 
@@ -285,20 +349,20 @@ void PowArray(const double *HWY_RESTRICT x, const double *HWY_RESTRICT y, double
 }
 
 // the emulated AVX-512 operations on arrays, for the tests: op 0 = rcp, 1 = mul RZ, 2 = fma RZ, 3 = add RZ,
-// 4 = reduce, 5 = RD(a + shifter)
+// 4 = reduce, 5 = RD(a + shifter). On AVX-512 targets these are the instructions themselves.
 void Primitive(int op, const double *a, const double *b, const double *c, double *out, size_t len) {
     const hn::ScalableTag<double> d;
     const size_t N = hn::Lanes(d);
     for (size_t i = 0; i + N <= len; i += N) {
         const auto va = hn::LoadU(d, a + i), vb = hn::LoadU(d, b + i), vc = hn::LoadU(d, c + i);
-        V<decltype(d)> r, f16;
+        V<decltype(d)> r, sh;
         switch (op) {
             case 0: r = RcpRounded(d, va); break;
             case 1: r = MulRZ(d, va, vb); break;
             case 2: r = FmaRZ(d, va, vb, vc); break;
             case 3: r = AddRZ(d, va, vb); break;
-            case 4: r = Reduce16(d, va, f16); break;
-            default: Reduce16(d, va, f16); r = hn::MulAdd(f16, hn::Set(d, 1.0 / 16), hn::Set(d, kShifter)); break;
+            case 4: r = Reduce16(d, va, sh); break;
+            default: Reduce16(d, va, sh); r = sh; break;
         }
         hn::StoreU(r, d, out + i);
     }

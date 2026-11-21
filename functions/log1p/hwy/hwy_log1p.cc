@@ -6,6 +6,7 @@
 // (rcp14_thresholds.h), vpermt2pd by TwoTablesLookupLanes (one instruction on AVX-512, two-table lookups
 // and selects on narrower vectors). Results are bit-identical to __svml_log1p8_ha. Lanes with 1 + x <= 0,
 // +-inf or NaN use the scalar SVML callout (svml_dlog1p_ha_cout_rare), like the assembly.
+// On AVX-512 targets (HWYMATH_NATIVE_AVX512) the instructions themselves replace these emulations.
 // Targets without FMA (SSE2/SSSE3/SSE4): std::log.
 // Based on Intel SVML (BSD-3-Clause, Copyright (C) 2023 Intel Corporation); same license.
 
@@ -23,6 +24,7 @@ extern "C" int svml_dlog1p_ha_cout_rare(const double *px, double *pr);
 #include "hwy/highway.h"
 #include "hwy/contrib/math/math-inl.h"
 #include "functions/log/hwy/log_hwy-inl.h"
+#include "hwymath/hwy/avx512_native-inl.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace hwymath_log {
@@ -54,9 +56,13 @@ HWY_INLINE V Log1pCore(D d, V x) {
     ExpMantNormal(d, xh, e, m);
     const auto xl = hn::Sub(mn, hn::Sub(xh, mx));
     RoundedRcp14(d, m, rcp, idx);
+#if HWYMATH_NATIVE_AVX512
+    const auto xls = hwymath::HWY_NAMESPACE::Scalef(xl, hn::Neg(e));  // Xl*2^-E: vxorpd, vscalefpd
+#else
     // Xl*2^-E (vscalefpd): exact multiplication by 2^(60-E), then one rounding in the multiplication by 2^-60
     const auto p60 = hn::ShiftLeft<52>(hn::Sub(hn::Set(du, 2106), hn::ShiftRight<52>(hn::BitCast(du, xh))));
     const auto xls = hn::Mul(hn::Mul(xl, hn::BitCast(d, p60)), hn::Set(d, 0x1p-60));
+#endif
     const auto lt34 = hn::Lt(rcp, hn::Set(d, kThree4));
     const auto r = hn::MulSub(rcp, m, one);  // R = rcp*m - 1
     const auto rxl = hn::Mul(rcp, xls);
@@ -87,7 +93,12 @@ HWY_INLINE V Log1pCore(D d, V x) {
 
 template <class D, class V = hn::VFromD<D>>
 HWY_INLINE auto Log1pSpecial(D d, V x) {  // 1 + x <= 0, +-inf, NaN
+#if HWYMATH_NATIVE_AVX512
+    // vfpclasspd $0xdf on 1 + x: every class but positive normal and denormal (1 + x is never denormal)
+    return hwymath::HWY_NAMESPACE::FpClass<0xdf>(hn::Add(x, hn::Set(d, 1.0)));
+#else
     return hn::Not(hn::And(hn::Gt(hn::Add(x, hn::Set(d, 1.0)), hn::Zero(d)), hn::Lt(hn::Add(x, hn::Set(d, 1.0)), hn::Inf(d))));
+#endif
 }
 
 void Log1pArray(const double *HWY_RESTRICT x, double *HWY_RESTRICT y, size_t len) {

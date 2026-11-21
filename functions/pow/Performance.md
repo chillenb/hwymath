@@ -57,4 +57,5 @@ four round-toward-zero emulations add about 40 operations, mostly the ErrFma err
 the RZ fma. The dependency chain is about 230 cycles long. `perf` shows the reservation station full for
 half of the cycles while the execution ports are only ~37 % busy: the kernel is latency-bound.
 Unrolling by two vectors (with GCC's pre-RA scheduling) did not help. On AVX-512 the lookups are the
-same single `vpermt2pd` + blend as in the assembly.
+same single `vpermt2pd` + blend as in the assembly, and the other AVX-512-only operations are the
+instructions themselves (README: the AVX3 loop has the C translation's 67 vector arithmetic instructions).

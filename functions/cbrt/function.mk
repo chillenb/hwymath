@@ -53,7 +53,7 @@ $(CBRT_B)/test_%: $(CBRT)/tests/test_%.c $(CBRT_TEST_DEPS)
 	$(CC) $(CFLAGS) $(INC) $< $(CBRT_OBJS) -lm -o $@
 
 # --- Highway version ---
-$(CBRT_B)/hwy_cbrt.o: $(CBRT)/hwy/hwy_cbrt.cc $(CBRT)/hwy/hwy_cbrt_constants.h $(CBRT)/rcp14_model.h $(CBRT_GEN) | $(CBRT_B)
+$(CBRT_B)/hwy_cbrt.o: $(CBRT)/hwy/hwy_cbrt.cc common/include/hwymath/hwy/avx512_native-inl.h $(CBRT)/hwy/hwy_cbrt_constants.h $(CBRT)/rcp14_model.h $(CBRT_GEN) | $(CBRT_B)
 	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
 $(CBRT_B)/hwy_test: $(CBRT)/tests/hwy_test.cc $(CBRT)/tests/extras.h common/include/hwymath/accuracy.h \
                     $(CBRT_TEST_DEPS) $(CBRT_B)/hwy_cbrt.o $(CBRT_EXTRAS)
