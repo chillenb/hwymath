@@ -1,5 +1,8 @@
+#ifndef SVML_TABLE  /* storage class of the tables (C++ users may define it as static constexpr) */
+#define SVML_TABLE static const
+#endif
 /* vector path (__svml_dexp_ha_data_internal_avx512) */
-static const double vTh[16] = {  /* 2^(j/16), rounded */
+SVML_TABLE double vTh[16] = {  /* 2^(j/16), rounded */
     0x1.0000000000000p+0,
     0x1.0b5586cf9890fp+0,
     0x1.172b83c7d517bp+0,
@@ -17,7 +20,7 @@ static const double vTh[16] = {  /* 2^(j/16), rounded */
     0x1.d5818dcfba487p+0,
     0x1.ea4afa2a490dap+0,
 };
-static const double vTlr[16] = {  /* 2^(j/16) = Th[j] * (1 + Tlr[j]) */
+SVML_TABLE double vTlr[16] = {  /* 2^(j/16) = Th[j] * (1 + Tlr[j]) */
     0x0.0p+0,
     0x1.79aa65d837b6dp-54,
     -0x1.01b15eaa59348p-55,
@@ -50,7 +53,7 @@ static const double vTlr[16] = {  /* 2^(j/16) = Th[j] * (1 + Tlr[j]) */
 #define vAbsMaskBits 0x7fffffffffffffffULL
 
 /* scalar callout (_imldExpHATab) */
-static const double sTab[128] = {  /* {hi, lo} of 2^(j/64), j = 0..63 */
+SVML_TABLE double sTab[128] = {  /* {hi, lo} of 2^(j/64), j = 0..63 */
     0x1.0000000000000p+0, 0x0.0p+0,
     0x1.02c9a3e778061p+0, -0x1.160139cd8dc5dp-56,
     0x1.059b0d3158574p+0, 0x1.cd2523567f613p-55,

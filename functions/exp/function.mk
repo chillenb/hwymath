@@ -1,5 +1,5 @@
 # exp, double precision: bit-identical C/AVX-512 translation of svml_z0_exp_d_ha.s, AVX2 ports and
-# variants, and a Google Highway version. Included by the top-level Makefile; paths are relative to the
+# variants, and two Google Highway versions (the hp variant, and Intel's algorithm bit-identically). Included by the top-level Makefile; paths are relative to the
 # repository root. Targets: exp-all exp-test exp-hwy exp-hashes exp-xcheck, and on x86-64 also
 # exp-compare exp-bench exp-insns exp-avx512-test.
 
@@ -72,11 +72,14 @@ $(EXP_B)/compare_avx2 $(EXP_B)/bench: $(EXP_B)/%: $(EXP)/tests/%.c $(EXP_TEST_DE
 $(EXP_B)/test_%: $(EXP)/tests/test_%.c $(EXP_TEST_DEPS)
 	$(CC) $(CFLAGS) $(INC) $< $(EXP_OBJS) -lm -o $@
 
-# --- Highway version ---
+# --- Highway versions (hp variant; Intel's algorithm) ---
+EXP_HWY_OBJS := $(EXP_B)/hwy_exp.o $(EXP_B)/hwy_exp_svml.o
 $(EXP_B)/hwy_exp.o: $(EXP)/hwy/hwy_exp.cc $(EXP)/hwy/hwy_exp_constants.h $(EXP_GEN) | $(EXP_B)
 	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
-$(EXP_B)/hwy_test: $(EXP)/tests/hwy_test.cc $(EXP)/tests/extras.h $(EXP_TEST_DEPS) $(EXP_B)/hwy_exp.o $(EXP_EXTRAS)
-	$(CXX) $(CXXFLAGS) $(INC) $< $(EXP_B)/hwy_exp.o $(EXP_OBJS) $(EXP_EXTRAS) $(LIBPATH) -lhwy $(SLEEF_LIB) \
+$(EXP_B)/hwy_exp_svml.o: $(EXP)/hwy/hwy_exp_svml.cc $(EXP)/hwy/hwy_exp_svml_constants.h $(EXP_GEN) | $(EXP_B)
+	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
+$(EXP_B)/hwy_test: $(EXP)/tests/hwy_test.cc $(EXP)/tests/extras.h $(EXP_TEST_DEPS) $(EXP_HWY_OBJS) $(EXP_EXTRAS)
+	$(CXX) $(CXXFLAGS) $(INC) $< $(EXP_HWY_OBJS) $(EXP_OBJS) $(EXP_EXTRAS) $(LIBPATH) -lhwy $(SLEEF_LIB) \
 	  $(INTEL_LIB) $(if $(filter x86_64,$(ARCH)),-lmvec) -lm -o $@
 
 # --- entry points ---
@@ -104,6 +107,7 @@ exp-bench: $(EXP_B)/bench
 exp-insns: $(EXP_B)/svml_exp_d_ha.o $(EXP_B)/svml_asm.o
 	common/tools/compare_insns.sh $(EXP_B)/svml_exp_d_ha.o svml_exp8_ha $(EXP_B)/svml_asm.o __svml_exp8_ha
 # AVX-512: bit-exactness of the translation (and AVX2 port) vs Intel's assembly, Highway AVX-512 targets
+# (svml variant: bit-identical to the translation and the assembly)
 exp-avx512-test: $(EXP_B)/test_exp8 $(EXP_B)/hwy_test
 	$(RUN) ./$(EXP_B)/test_exp8 2000000 || [ $$? -eq 77 ]
 	$(RUN) ./$(EXP_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)

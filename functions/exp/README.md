@@ -7,7 +7,7 @@ Source studied: [`svml_z0_exp_d_ha.s`](https://github.com/numpy/SVML/blob/9a43e7
 |---|---|
 | `svml/` | bit-identical C/AVX-512 translation of the assembly, with its constants (`svml_exp_d_ha_constants.inc`, generated from the assembly by `tools/gen_svml_constants.py`) |
 | `avx2/` | bit-identical AVX2 port; faster, non-identical "fast" and "hp" variants with their own polynomials |
-| `hwy/` | portable Google Highway version of the hp variant |
+| `hwy/` | portable Google Highway versions: of the hp variant (`hwy_exp.cc`), and of Intel's algorithm, bit-identical to the assembly (`hwy_exp_svml.cc`) |
 | `tests/` | tests, benchmarks, comparison implementations (Intel SVML, SLEEF, libmvec), test inputs |
 | `tools/` | `gen_svml_constants.py`, `fit_poly.py` (minimax fits, 60-digit `decimal`), `xcheck.sh` (QEMU) |
 | `exp_d.h` | declarations of all the C kernels |
@@ -51,7 +51,9 @@ so its results are bit-identical to Intel's (`test_exp8`).
 - In both non-identical variants the rarely used scalar callout is an out-of-line `cold` function, so
   the hot path needs no stack frame (worth ~10 % per call).
 
-## Highway version (`hwy/`)
+## Highway versions (`hwy/`)
+
+### hp variant
 
 `hwy/hwy_exp.cc` is the hp variant written with [Google Highway](https://github.com/google/highway)
 (1.4.0 from conda-forge), with run-time dispatch to the best target:
@@ -76,6 +78,33 @@ Notes:
 - The SVML constant macros (`vC1`, ...) collide with identifiers inside Highway's headers, so
   `hwy/hwy_exp_constants.h` turns the needed ones into `constexpr` and `#undef`s all of them.
 
+### Intel's algorithm (`hwy_exp_svml.cc`)
+
+`hwy/hwy_exp_svml.cc` (`hwy_exp_svml_array`) ports the algorithm of the assembly itself, like
+`functions/exp2/hwy/`. On every target with true FMA (`HWY_NATIVE_FMA`: AVX3*, AVX2, NEON, SVE, SVE2 at
+any vector length) its results are bit-identical to Intel's `__svml_exp8_ha`; targets without FMA
+(SSE2/SSSE3/SSE4) use `std::exp`. The AVX-512-only operations are emulated exactly by small helper
+functions (to be replaced by the native instructions on AVX-512 targets):
+
+- `{rz-sae}` FMA (`ShifterRZ`): as in the AVX2 port, t = RN(x·log2(e) + S), the sign of its exact
+  rounding error from a second FMA, and one ulp down on the bit pattern where RN rounded up (a masked
+  `vpsubq` on AVX-512, an add of the all-ones compare mask elsewhere);
+- `vpermt2pd` (`Lookup16`): `vpermt2pd` itself on AVX-512 (no index masking: it reads the low 4 bits of
+  t); on AVX2 two `TwoTablesLookupLanes` (`vpermd` + `blendv`) for entries 0–7 and 8–15 and a `blendv`
+  on bit 3 of the index shifted into the sign bit; selects of two-table lookups on 2-lane vectors; a
+  repeated table and `TableLookupLanes` for ≥ 16 lanes. No gathers;
+- `vscalefpd` (`Scalef`): bits 4–15 of t are 1023 + floor(N), so 2^floor(N) is two shifts away; it is
+  normal and the product exact for every lane that the scalar routine does not redo;
+- Intel's `and` of r with `0xbfff…` (it keeps |r| < 2 for special inputs) is a no-op for every lane whose
+  vector result is kept, so it is left out;
+- lanes with |x| ≥ 707.703 *or NaN* go to the C scalar routine `svml_dexp_ha_cout_rare` (out of line,
+  `cold`); for NaN it returns x·x, the quieted NaN that the AVX-512 code produces.
+
+Checked by `hwy_test` (bit-identity of every svml target with the C AVX2 port, and with AVX-512F —
+natively or under Intel SDE — with the C/AVX-512 translation and Intel's assembly), by `make exp-xcheck`
+(QEMU) and by the CI hash cross-check (variant `svml`; the C AVX2 port, the AVX-512 translation and the
+assembly write hash lines of the same variant).
+
 ## Tests (`make exp-test`)
 
 | test | compares with | result |
@@ -83,7 +112,8 @@ Notes:
 | `test_rare` | Intel's scalar `__svml_dexp_ha_cout_rare_internal`: results, return codes, FP exception flags | 20,002,324 inputs, 0 mismatches |
 | `test_exp8` | Intel's `__svml_exp8_ha`: all 8 lanes bit-exact, for the AVX-512 translation and the AVX2 port | 100,002,328 inputs, 0 mismatches (CI, Xeon 6975P-C); needs AVX-512 (else Intel SDE) |
 | `test_model` | scalar model of the AVX-512 instruction semantics (real `fesetround` RZ, `ldexp`, array lookups) vs the AVX2 port | 20,002,324 inputs, 0 mismatches |
-| `hwy_test` | every Highway target: error bounds, agreement between targets, bit-identity with the C hp variant, special values | all checks pass |
+| `hwy_test` | every Highway target, both versions: error bounds, agreement between targets, special values; hp: bit-identity with the C hp variant; svml: bit-identity with the C AVX2 port, and with AVX-512F with the C/AVX-512 translation and `__svml_exp8_ha` | all checks pass (AVX3_SPR/AVX3_DL/AVX3/AVX2 under SDE `-spr`) |
+| `make exp-xcheck` | both Highway versions as static AArch64 NEON/SVE/SVE2 binaries under QEMU (SVE at 128–2048 bits) vs x86-64 AVX2 | bit-identical |
 | `make exp-insns` | arithmetic instruction mix (mnemonic + rounding mode) of the compiled vector path vs the assembly | identical |
 
 Inputs (`tests/inputs.h`): special values, ±50 ulps around every threshold of both algorithms, table

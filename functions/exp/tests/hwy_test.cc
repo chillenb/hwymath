@@ -1,15 +1,21 @@
-// Test and benchmark of the Highway exp on every target that is compiled in and supported by this CPU,
-// plus Highway's hwy/contrib/math Exp and the other implementations available here (extras*.c).
+// Test and benchmark of the two Highway exps (hwy_exp.cc: hp algorithm; hwy_exp_svml.cc: Intel's SVML
+// algorithm) on every target that is compiled in and supported by this CPU, plus Highway's
+// hwy/contrib/math Exp and the other implementations available here (extras*.c).
 //
 // usage: hwy_test [N_RANDOM] [--no-bench] [--hash FILE]
 //   --hash FILE  append "arch exp target variant n hash" lines (FNV-1a of the result bits; variant hp4/hp8 =
-//                hp algorithm with a 4/8-entry table): results of the same variant must be bit-identical on
-//                every machine and target, which the CI cross-check job verifies.
+//                hp algorithm with a 4/8-entry table, svml = Intel's algorithm, also written for the C
+//                AVX2 port / AVX-512 translation and Intel's assembly when the CPU can run them): results
+//                of the same variant must be bit-identical on every machine and target, which the CI
+//                cross-check job verifies.
 // Exit status 1 if a check fails:
 //   - hp targets: max error <= 0.53 ulp and no error > 1 ulp
 //   - all targets with the same hp variant produce identical results
 //   - x86-64: the AVX2 target matches the C hp variant bit for bit, and all hp targets match the
 //     bit-identical SVML port on special inputs/results (NaN, inf, 0, denormal)
+//   - svml targets: max error < 1 ulp, no special-value mismatch (NaN, inf, 0), all identical; on x86-64
+//     bit-identical to the C AVX2 port and, with AVX-512F, to the C/AVX-512 translation and to Intel's
+//     __svml_exp8_ha assembly (which are also compared with each other)
 #include <cfloat>
 #include <cmath>
 #include <cstdint>
@@ -19,6 +25,7 @@
 #include <ctime>
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "hwy/targets.h"
@@ -30,6 +37,9 @@ void hwy_exp_array(const double *x, double *y, size_t len);
 void hwy_contrib_exp_array(const double *x, double *y, size_t len);
 int hwy_exp_variant(void);
 size_t hwy_exp_lanes(void);
+void hwy_exp_svml_array(const double *x, double *y, size_t len);
+int hwy_exp_svml_variant(void);
+size_t hwy_exp_svml_lanes(void);
 }
 #include "inputs.h"
 
@@ -39,6 +49,18 @@ static const char *kArch = "x86_64";
 static const char *kArch = "aarch64";
 #else
 static const char *kArch = "other";
+#endif
+
+#if defined(__x86_64__)
+extern "C" __attribute__((target("avx512f"))) __m512d __svml_exp8_ha(__m512d x);  // Intel's assembly
+__attribute__((target("avx512f"))) static void intel_asm_array(const double *x, double *y, size_t len) {
+    size_t i = 0;
+    for (; i + 8 <= len; i += 8) _mm512_storeu_pd(y + i, __svml_exp8_ha(_mm512_loadu_pd(x + i)));
+    if (i < len) {
+        const __mmask8 m = (__mmask8)((1u << (len - i)) - 1);
+        _mm512_mask_storeu_pd(y + i, m, __svml_exp8_ha(_mm512_maskz_loadu_pd(m, x + i)));
+    }
+}
 #endif
 
 static double ulp_err(double y, long double ref) {
@@ -64,6 +86,27 @@ static Stats accuracy(const std::vector<double> &x, const std::vector<double> &y
         if (e > s.max_err) { s.max_err = e; s.worst_x = x[i]; }
     }
     return s;
+}
+
+// results whose reference is not a finite nonzero double must match exactly (NaN, same inf, same zero)
+static size_t special_mismatches(const std::vector<double> &y) {
+    size_t bad = 0;
+    for (size_t i = 0; i < y.size(); i++) {
+        const double rd = (double)g_ref[i];
+        if (std::isfinite(rd) && rd != 0.0) continue;
+        bad += std::isnan(rd) ? !std::isnan(y[i]) : !(y[i] == rd && std::signbit(y[i]) == std::signbit(rd));
+    }
+    return bad;
+}
+
+// number of results that differ from ref bit for bit (printing the first few)
+static size_t bit_diff(const std::vector<double> &x, const std::vector<double> &y, const std::vector<double> &ref,
+                       const char *name) {
+    size_t diff = 0;
+    for (size_t i = 0; i < x.size(); i++) {
+        if (dbits(y[i]) != dbits(ref[i]) && diff++ < 5) printf("  x=%a: %a, %s %a\n", x[i], y[i], name, ref[i]);
+    }
+    return diff;
 }
 
 static uint64_t fnv1a(const std::vector<double> &v) {
@@ -116,20 +159,42 @@ int main(int argc, char **argv) {
     FILE *hf = hash_file ? fopen(hash_file, "a") : nullptr;
     if (hf) fprintf(hf, "%s exp inputs - %zu %016llx\n", kArch, x.size(), (unsigned long long)fnv1a(x));
 
+    int failures = 0;
+    // references for the svml variant (x86-64): C AVX2 port, C/AVX-512 translation, Intel's assembly
+    std::vector<std::pair<const char *, std::vector<double>>> svml_refs;
 #if defined(__x86_64__)
     const bool have_avx2 = __builtin_cpu_supports("avx2") && __builtin_cpu_supports("fma");
     std::vector<double> ref_hp(x.size()), ref_ha(x.size());
     if (have_avx2) {
         svml_exp_hp_array_avx2(x.data(), ref_hp.data(), x.size());  // C hp variant
         svml_exp_ha_array_avx2(x.data(), ref_ha.data(), x.size());  // bit-identical SVML port
+        svml_refs.emplace_back("C-AVX2", ref_ha);
+    }
+    if (__builtin_cpu_supports("avx512f")) {
+        std::vector<double> r(x.size());
+        svml_exp_ha_array(x.data(), r.data(), x.size());
+        svml_refs.emplace_back("C-AVX512", r);
+        intel_asm_array(x.data(), r.data(), x.size());
+        svml_refs.emplace_back("asm-AVX512", r);
     }
 #endif
+    for (size_t k = 0; k < svml_refs.size(); k++) {  // the references must agree with each other
+        const auto &ref = svml_refs[k].second;
+        if (hf) fprintf(hf, "%s exp %s svml %zu %016llx\n", kArch, svml_refs[k].first, ref.size(),
+                        (unsigned long long)fnv1a(ref));
+        if (k > 0) {
+            const size_t diff = bit_diff(x, ref, svml_refs[0].second, svml_refs[0].first);
+            if (diff) { printf("FAIL: %s differs from %s in %zu results\n", svml_refs[k].first, svml_refs[0].first, diff); failures++; }
+        }
+    }
 
-    printf("%s, %zu inputs, errors vs expl (long double with %d-bit mantissa)\n\n", kArch, x.size(), LDBL_MANT_DIG);
+    printf("%s, %zu inputs, errors vs expl (long double with %d-bit mantissa)%s\n\n", kArch, x.size(), LDBL_MANT_DIG,
+           svml_refs.size() > 1 ? "; C/AVX-512 translation and Intel's assembly available for bit-identity checks" : "");
     printf("%-22s %-12s %5s %9s %10s %8s %10s\n", "implementation", "algorithm", "lanes", "max ulp", "not CR", ">1 ulp",
            do_bench ? "ns/value" : "");
-    int failures = 0;
-    std::map<int, uint64_t> variant_hash;  // hp variant -> result hash of the first target with it
+    std::map<int, uint64_t> variant_hash;
+    bool have_svml_hash = false;
+    uint64_t svml_hash = 0;  // hp variant -> result hash of the first target with it
     for (int64_t target : hwy::SupportedAndGeneratedTargets()) {
         hwy::SetSupportedTargetsForTest(target);
         const int variant = hwy_exp_variant();
@@ -162,6 +227,30 @@ int main(int argc, char **argv) {
             }
 #endif
         }
+
+        // Intel's algorithm (hwy_exp_svml.cc)
+        const int svariant = hwy_exp_svml_variant();
+        hwy_exp_svml_array(x.data(), y.data(), x.size());
+        s = accuracy(x, y, INFINITY);
+        print_row(name, svariant ? "svml" : "std::exp", hwy_exp_svml_lanes(), s,
+                  do_bench ? bench(hwy_exp_svml_array) : 0);
+        if (svariant) {
+            const uint64_t h = fnv1a(y);
+            if (hf) fprintf(hf, "%s exp %s svml %zu %016llx\n", kArch, tname, y.size(), (unsigned long long)h);
+            const size_t sm = special_mismatches(y);
+            if (s.max_err >= 1.0 || s.over1 || sm) {
+                printf("  FAIL: error bound exceeded or %zu special mismatches\n", sm);
+                failures++;
+            }
+            if (!have_svml_hash) { svml_hash = h; have_svml_hash = true; }
+            else if (h != svml_hash) { printf("  FAIL: results differ from the first svml target\n"); failures++; }
+            for (const auto &ref : svml_refs) {
+                const size_t diff = bit_diff(x, y, ref.second, ref.first);
+                if (diff) { printf("  FAIL: %zu results differ from %s\n", diff, ref.first); failures++; }
+                else printf("  svml: bit-identical to %s\n", ref.first);
+            }
+        }
+
         hwy_contrib_exp_array(x.data(), y.data(), x.size());
         Stats c = accuracy(x, y, 706.0);  // documented valid range of hwy contrib Exp: x <= 706
         snprintf(name, sizeof name, "  hwy contrib Exp");

@@ -14,11 +14,14 @@ def lane(off):  # 64-byte block of 8 identical lanes
     assert len(set(words)) == 1, off
     return words[0]
 
+print('#ifndef SVML_TABLE  /* storage class of the tables (C++ users may define it as static constexpr) */')
+print('#define SVML_TABLE static const')
+print('#endif')
 print('/* vector path (__svml_dexp_ha_data_internal_avx512) */')
-print('static const double vTh[16] = {  /* 2^(j/16), rounded */')
+print('SVML_TABLE double vTh[16] = {  /* 2^(j/16), rounded */')
 for j in range(16): print(f'    {hx(vec[j])},')
 print('};')
-print('static const double vTlr[16] = {  /* 2^(j/16) = Th[j] * (1 + Tlr[j]) */')
+print('SVML_TABLE double vTlr[16] = {  /* 2^(j/16) = Th[j] * (1 + Tlr[j]) */')
 for j in range(16): print(f'    {hx(vec[16 + j])},')
 print('};')
 for off, name in [(256, 'vLog2e'), (320, 'vShifter'), (384, 'vLn2Hi'), (448, 'vLn2Lo'), (576, 'vC6'), (640, 'vC5'),
@@ -28,7 +31,7 @@ for off, name in [(512, 'vRMaskBits'), (960, 'vAbsMaskBits')]:
     print(f'#define {name:<12} 0x{lane(off):016x}ULL')
 
 print('\n/* scalar callout (_imldExpHATab) */')
-print('static const double sTab[128] = {  /* {hi, lo} of 2^(j/64), j = 0..63 */')
+print('SVML_TABLE double sTab[128] = {  /* {hi, lo} of 2^(j/64), j = 0..63 */')
 for j in range(64): print(f'    {hx(sca[2*j])}, {hx(sca[2*j+1])},')
 print('};')
 for off, name in [(1024, 's64OverLn2'), (1032, 'sShifter'), (1040, 'sC2'), (1048, 'sC3'), (1056, 'sC4'), (1064, 'sC5'),

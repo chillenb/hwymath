@@ -116,6 +116,24 @@ Highway (`make exp-hwy`, `make exp-xcheck`):
 | AArch64 SVE, SVE2 at 128/256/512/2048 bits (QEMU) | hp, 4-entry | 0.510* | 0.068 %* | | bit-identical to x86-64 AVX2 |
 | Highway contrib `Exp` (AVX2) | | 1.013 | 6.09 % | 1.35 | |
 
+Highway port of Intel's algorithm (`hwy/hwy_exp_svml.cc`; `make exp-hwy`, 20,002,324 inputs, and
+`make exp-xcheck`). Timings from the i5-9500 only (AVX2; there is no AVX-512 on this machine, so the
+AVX-512 targets were only checked for bit-identity, under Intel SDE `-spr`, where timings are
+meaningless; CI numbers are to be added at integration):
+
+| target | algorithm | max ulp | not CR | ns/value (array) | check |
+|---|---|---|---|---|---|
+| AVX2 | svml | 0.7217 | 3.0555 % | 1.56 | bit-identical to the C AVX2 port (1.70 ns/value in the same run) |
+| AVX3_SPR / AVX3_DL / AVX3 (SDE) | svml | 0.6987* | 3.0736 %* | | bit-identical to the C/AVX-512 translation and to Intel's `__svml_exp8_ha` |
+| SSE4 / SSSE3 / SSE2 | `std::exp` | 0.5063 | 0.0362 % | 6.8–7.0 | |
+| AArch64 NEON, SVE, SVE2 at 128/256/512/2048 bits (QEMU) | svml | 0.6989† | 3.094 %† | | bit-identical to x86-64 AVX2 |
+
+\* 2,002,324 inputs. † 2,002,324 inputs, binary128 reference.
+
+Same run, for comparison: Intel `__svml_exp4_ha_l9` 1.04 ns/value (0.5225 ulp), SLEEF u10 AVX2 1.52
+(0.877 ulp), Highway hp AVX2 1.15 (0.5107 ulp). The Highway port is ~8 % faster than the C AVX2 port
+(fewer instructions: no `and` of r, no masking of the table index on AVX2, 2^M from two shifts).
+
 \* 2,002,324 inputs, binary128 reference; the same results give 0.5098 ulp / 0.054 % with the x86-64
 reference.
 
