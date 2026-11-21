@@ -3,7 +3,7 @@
 Source studied: [`svml_z0_atanh_d_ha.s`](https://github.com/numpy/SVML/blob/9a43e744b15006d63e8d1b57626dfbe6b984f5ee/linux/avx512/svml_z0_atanh_d_ha.s)
 (AVX-512, high accuracy). Accuracy and speed: [Performance.md](Performance.md). The two logarithms use the
 same reduction and tables (with the opposite sign) as asinh's ([../asinh/README.md](../asinh/README.md)),
-and the Highway version uses the AVX-512 emulations described there (`functions/asinh/hwy/avx512_emul-inl.h`).
+and the Highway version uses the AVX-512 emulations described there (`common/include/hwymath/hwy/avx512_emul-inl.h`).
 
 | path | contents |
 |---|---|
@@ -54,7 +54,7 @@ Replacing the exact `vrcp14pd` by another 14-bit approximation (1/x truncated to
 | `hwy_test` | every Highway target: max error < 1 ulp vs `atanhl`, special results (±inf at ±1, NaN beyond, ±0), agreement between targets, bit-identity with the C translation when AVX-512 is available | all checks pass (SDE: AVX3, AVX3_DL, AVX3_SPR, AVX2 bit-identical to the translation) |
 | `make atanh-insns` | arithmetic instruction mix of the compiled vector path vs the assembly | identical |
 
-The emulated instructions themselves are tested by asinh's `test_approx14`.
+The emulated instructions themselves are tested by `make common-test` ([common/README.md](../../common/README.md#vrcp14pd-and-vrsqrt14pd)).
 
 Inputs (`tests/inputs.h`): ±0, ±1, ±inf, NaNs, denormals, ±DBL_MAX, 1 ± 1 ulp; ±100 ulps around ±1, ±0.5,
 ±2⁻⁵³, ±2⁻⁵⁴, ±0.25, ±0.75, ±2⁻⁵; |x| = j/32 and 1 − 2⁻ᵉ·(1 + j/32) with neighbours (boundaries of the

@@ -6,7 +6,7 @@
 // i.e. k = 32 - #{thresholds <= m}. kRcpThreshold[j - 16] is the smallest m with k(m) <= j. The exact
 // mathematical boundaries would be 64/(2j+1); vrcp14pd's error (< 2^-14) moves them by up to ~2 units of 2^-16.
 // Found by bisection on Intel SDE 10.13 (-spr); functions/log/tools/verify_rcp14.c proves them from Intel's
-// reference algorithm (tools/rcp14_ref.h, all 2^16 fraction prefixes) and checks them against vrcp14pd.
+// reference algorithm (common/include/hwymath/rcp14_ref.h, all 2^16 fraction prefixes) and checks them against vrcp14pd.
 #ifndef HWYMATH_LOG_RCP14_THRESHOLDS_H
 #define HWYMATH_LOG_RCP14_THRESHOLDS_H
 

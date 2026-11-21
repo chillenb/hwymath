@@ -1,11 +1,11 @@
 /* vrcp14pd (hardware or Intel SDE) vs the scalar reference rcp14_ref_bits() (Intel's published reference
- * algorithm, ../rcp14_ref.h), bit for bit, on the inputs of rcp14_inputs.h. Needs AVX-512F (else exit 77). */
+ * algorithm, common/include/hwymath/rcp14_ref.h), bit for bit, on the inputs of rcp14_inputs.h. Needs AVX-512F (else exit 77). */
 #include <immintrin.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "hwymath/test_util.h"
-#include "functions/tan/rcp14_ref.h"
+#include "hwymath/rcp14_ref.h"
 #include "rcp14_inputs.h"
 
 __attribute__((target("avx512f"))) static size_t

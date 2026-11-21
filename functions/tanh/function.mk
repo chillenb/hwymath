@@ -53,7 +53,7 @@ tanh-hwy: $(TANH_B)/hwy_test
 tanh-hashes: $(TANH_B)/hwy_test
 	$(RUN) ./$(TANH_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 tanh-xcheck: $(TANH_GEN)
-	./$(TANH)/tools/xcheck.sh $(PREFIX) $(PREFIX)
+	common/tools/xcheck.sh tanh $(PREFIX) $(PREFIX)
 ALL_TARGETS    += tanh-all
 TEST_TARGETS   += tanh-test
 HWY_TARGETS    += tanh-hwy

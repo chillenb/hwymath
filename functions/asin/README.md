@@ -9,8 +9,8 @@ Source studied: [`svml_z0_asin_d_ha.s`](https://github.com/numpy/SVML/blob/9a43e
 | `svml/svml_asin_d_ha_constants.inc` | vector-path constants, generated from the assembly by `tools/gen_svml_constants.py` |
 | `svml/svml_dasin_ha_cout_rare.inc` | the scalar callout, translated mechanically by `tools/asm2c.py` |
 | `svml/asm_model.h` | the machine model the mechanical translations run on (also used by acos, atan, atan2) |
-| `tools/` | `gen_svml_constants.py`, `asm2c.py` (also used by acos, atan, atan2), `xcheck_invtrig.sh`/`.cc` (AArch64 cross-check of all four functions), `gen_approx14.py` (`hwy/approx14_tables.h`) |
-| `hwy/` | portable Google Highway version; `approx14-inl.h`, `approx14_tables.h`: exact emulation of `vrcp14pd`/`vrsqrt14pd` (also used by acos, atan, atan2) |
+| `tools/` | `gen_svml_constants.py`, `asm2c.py` (also used by acos, atan, atan2), `xcheck_invtrig.cc` (AArch64 cross-check driver of all four functions, run by `common/tools/xcheck.sh`) |
+| `hwy/` | portable Google Highway version (the exact `vrcp14pd`/`vrsqrt14pd` emulation it uses is in `common/include/hwymath/hwy/avx512_emul-inl.h`) |
 | `tests/` | tests, benchmark, comparison implementations (Intel SVML, SLEEF), test inputs |
 | `asin_d.h` | declarations of the C kernels |
 | `function.mk` | build rules and the `asin-*` make targets |
@@ -84,26 +84,20 @@ for a ≥ 0.5 (Sh = RN(2Y·r) and the split of 2√Y into Sh − Sl change with 
 errors of π/2 − Sh and of the final sum). But Intel publishes a bit-exact reference, RECIP14.c
 ("Reference Implementations for IA Approximation Instructions", BSD-3-Clause), which Intel SDE follows: a
 linear function on one of 64 segments of the mantissa ([1, 4) with the exponent parity for rsqrt14,
-[1, 2) for rcp14) with 17-to-19-bit integer coefficients, truncated to 17 bits. `hwy/approx14-inl.h`
-evaluates it exactly without gathers: the coefficients are computed per lane from the segment centre (one
-division, plus a square root for rsqrt14, and `Floor`) plus a 4-bit correction read from four 64-bit
-words. It was written for the inverse hyperbolic functions (`functions/asinh/hwy/avx512_emul-inl.h`,
-`tools/gen_approx14.py`, `tests/test_approx14.cc`, branch `port/invhyperbolic`) and is copied here with
-renamed namespace and guards. Its domains (`Rsqrt14`: ±0, +inf, NaN, positive normal; `Rcp14`: positive
+[1, 2) for rcp14) with 17-to-19-bit integer coefficients, truncated to 17 bits. The shared
+Highway emulation evaluates it exactly without gathers (see [common/README.md](../../common/README.md#vrcp14pd-and-vrsqrt14pd)). Its domains (`Rsqrt14`: ±0, +inf, NaN, positive normal; `Rcp14`: positive
 normal with a normal reciprocal) cover every lane whose result is used here: Y ∈ [0, 0.5] for asin/acos
 (Y = 0 only for |x| = 1, where r is set to 0 anyway; |x| > 1 and NaN lanes are replaced), Y ∈ [1, 2¹²⁸]
 for atan, b ∈ [2⁻¹⁰²⁰, 2⁹⁹⁵) on the main path of atan2.
 
-`tests/test_approx14` checks the scalar reference (`tests/approx14_ref.h`) against the instructions
-(under SDE or on AVX-512 hardware) and the emulation on every FMA target against the reference, for all
-2¹⁶ mantissa prefixes (low bits zero, all ones and random) at 18 exponents, including those used here.
-Consequences:
+`make common-test` checks the scalar reference against the instructions (under SDE or on AVX-512 hardware)
+and the emulation on every FMA target against the reference, for all 2¹⁶ mantissa prefixes. Consequences:
 
 - the Highway results are bit-identical to Intel's AVX-512 code (`svml_asin8_ha` / `__svml_asin8_ha`) on
   every FMA target: AVX3_SPR/AVX3_DL/AVX3 (the instruction) and AVX2 (the emulation) under SDE, and
   AArch64 NEON/SVE/SVE2 (the emulation) bit-identical to x86-64 under QEMU;
 - AVX-512 targets use the instruction (cheaper than the emulation); on Intel CPUs it is the same function
-  (`test_approx14` checks the CPU's instruction whenever AVX-512 is present). An AVX-512 CPU with a
+  (`make common-test` checks the CPU's instruction whenever AVX-512 is present). An AVX-512 CPU with a
   different implementation would give different results there, as Intel's own code would;
 - the emulation costs time where it is used: on the Core i5-9500 the AVX2 version takes 5.5 ns/value
   (2.3 ns with the earlier, non-identical trunc16(1/√Y) substitute; Intel's libsvml AVX2 code: 2.3 ns).
@@ -118,9 +112,9 @@ Targets without FMA (SSE2/SSSE3/SSE4) use `std::asin`. Lanes with |x| > 1 use th
 | `test_rare` | Intel's scalar `__svml_dasin_ha_cout_rare_internal`: results, return codes, FP exception flags | 20,004,655 inputs, 0 mismatches |
 | `test_asin8` | Intel's `__svml_asin8_ha`, all 8 lanes bit-exact | 2,004,656 inputs, 0 mismatches (Intel SDE `-spr`); skipped (77) without AVX-512 |
 | `hwy_test` | every Highway target: error bound (max ≤ 0.9 ulp, none > 1 ulp), special inputs (NaN, ±inf, \|x\| > 1, ±0), identical results on all FMA targets; with AVX-512: bit-identity of every FMA target with the C translation `svml_asin8_ha` | all checks pass (AVX3_SPR, AVX3_DL, AVX3, AVX2 under SDE; AVX2 natively) |
-| `test_approx14` (in `asin-test` and every `*-avx512-test`) | reference RECIP14 vs `vrcp14pd`/`vrsqrt14pd` (AVX-512 or SDE), emulation (every FMA target) vs reference, all 2¹⁶ prefixes at 18 exponents | 3,538,956 (rcp14) and 3,538,960 (rsqrt14) inputs per check, 0 mismatches (SDE: instructions, AVX3_SPR, AVX3_DL, AVX3, AVX2) |
+| `test_approx14` (`make common-test`, part of `make test` and `make avx512-test`) | reference RECIP14 vs `vrcp14pd`/`vrsqrt14pd` (AVX-512 or SDE), emulation (every FMA target) vs reference, all 2¹⁶ prefixes at 18 exponents | 3,538,956 (rcp14) and 3,538,960 (rsqrt14) inputs per check, 0 mismatches (SDE: instructions, AVX3_SPR, AVX3_DL, AVX3, AVX2) |
 | `make asin-insns` | arithmetic instruction mix of the compiled vector path vs the assembly | identical |
-| `make asin-xcheck` (`pixi run -e cross`) | Highway NEON, SVE and SVE2 under QEMU (SVE at 128, 256, 512, 1024 and 2048 bits, i.e. 2 to 32 lanes) vs x86-64 AVX2: inputs and results bit for bit (`functions/asin/tools/xcheck_invtrig.sh`) | identical on all 11 AArch64 configurations (200,000 random inputs plus the edge cases) |
+| `make asin-xcheck` (`pixi run -e cross`) | Highway NEON, SVE and SVE2 under QEMU (SVE at 128, 256, 512, 1024 and 2048 bits, i.e. 2 to 32 lanes) vs x86-64 AVX2: inputs and results bit for bit (`common/tools/xcheck.sh` with `tools/xcheck_invtrig.cc`) | identical on all 11 AArch64 configurations (200,000 random inputs plus the edge cases) |
 
 Inputs (`tests/inputs.h`): special values (±0, ±inf, NaNs with payloads, denormals, ±1, ±DBL_MAX, ...),
 ±50 ulps around every threshold of the vector code and the callout (0.5, 1, 2⁻⁵³, 2⁻¹⁰²², ...),

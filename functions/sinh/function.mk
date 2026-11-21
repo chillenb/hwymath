@@ -53,7 +53,7 @@ sinh-hwy: $(SINH_B)/hwy_test
 sinh-hashes: $(SINH_B)/hwy_test
 	$(RUN) ./$(SINH_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 sinh-xcheck: $(SINH_GEN)
-	./$(SINH)/tools/xcheck.sh $(PREFIX) $(PREFIX)
+	common/tools/xcheck.sh sinh $(PREFIX) $(PREFIX)
 ALL_TARGETS    += sinh-all
 TEST_TARGETS   += sinh-test
 HWY_TARGETS    += sinh-hwy

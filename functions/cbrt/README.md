@@ -96,12 +96,11 @@ The model `rcp14_model.h` (k = 16 − #{i : |m| ≥ T_i}) is therefore exact, an
 mantissas, against `vrndscalepd(vrcp14pd(m), 0x48)` under SDE. It also checks that rcp14 depends on no
 more than the 16 prefix bits.
 
-Caveat: the thresholds were measured on Intel SDE's `vrcp14pd`, which is meant to model Intel hardware.
-This machine has no AVX-512, so `test_rcp14` has not yet run on real hardware; running
-`make cbrt-avx512-test` natively on an AVX-512 machine (e.g. the CI Xeon) would confirm it. Another
-vendor's `vrcp14pd` (e.g. AMD Zen 4/5) could round differently near the 8 boundaries. Then Intel's own
-assembly would give different results there on that CPU, while the Highway version, which never executes
-`vrcp14pd`, would keep giving the SDE/Intel results.
+The thresholds were measured on Intel SDE's `vrcp14pd`. `test_rcp14` has since passed natively in CI on an
+Intel Xeon 6975P-C, and the same instruction follows Intel's reference algorithm exactly on AMD Zen 4 and Zen 5
+(EPYC 9V74, 9V45: `test_approx14`, `verify_rcp14`), so the thresholds hold there too. On AVX-512 targets the
+Highway version now uses the instruction itself (`Round(16·vrcp14pd(m))/16`); the thresholds serve the
+other targets.
 
 Performance notes:
 - A fast path for vectors whose lanes are all normal skips the denormal scaling and the final special-value

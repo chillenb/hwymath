@@ -15,7 +15,7 @@ the same large-argument reduction; the code they share lives here.
 | `hwy/trig_hwy-inl.h`, `hwy/trig_tables.h` | **shared**: Highway table lookups (vpermt2pd emulation) and the large-argument path |
 | `tests/` | `test_rare.c`, `test_sin8.c`, `hwy_test.cc`, `extras.c`; **shared** templates `*_tmpl.h` and `inputs.h` |
 | `tools/gen_svml_constants.py` | constant generator for sin, cos and the reduction data |
-| `tools/xcheck.sh`, `tests/hwy_xcheck_tmpl.h` | **shared**: `make <f>-xcheck`, static per-target builds run under QEMU (AArch64 NEON/SVE/SVE2) vs x86-64 |
+| `tests/hwy_xcheck_tmpl.h` | **shared**: driver of `make <f>-xcheck` (`common/tools/xcheck.sh`: static per-target builds run under QEMU, AArch64 NEON/SVE/SVE2, vs x86-64) |
 | `trig_common.mk` | **shared** make variables (included by the sin, cos and tan `function.mk`) |
 | `sin_d.h` | declarations of the C translation |
 

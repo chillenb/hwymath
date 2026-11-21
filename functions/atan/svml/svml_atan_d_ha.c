@@ -26,7 +26,7 @@
  * vrcp14pd results are implementation-defined (Intel's are a function of the top 16 mantissa bits, with
  * at most 16 significant bits); the result of the algorithm depends on them (Rcp2 keeps the rounding
  * error of Rcp(1 + eps)). Intel publishes a bit-exact reference
- * (RECIP14.c), which the Highway version emulates (functions/asin/hwy/approx14-inl.h).
+ * (RECIP14.c), which the Highway version emulates (common/include/hwymath/hwy/avx512_emul-inl.h).
  *
  * Build: any x86-64 C compiler with AVX-512F intrinsics (GCC, Clang, ICX). Do not use -ffast-math.
  * Only the vector functions need AVX-512F at run time; the scalar routine is plain C.

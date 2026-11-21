@@ -2,6 +2,8 @@ BSD 3-Clause License
 
 Copyright (C) 2026 Christopher Hillenbrand
 Copyright (C) 2023 Intel Corporation (Short Vector Math Library code this work is derived from)
+Copyright (c) 2015 Intel Corporation (coefficient tables of recip14.c, "Reference Implementations for IA
+  Approximation Instructions VRCP14, VRSQRT14, VRCP28, VRSQRT28, and VEXP2": common/include/hwymath)
 
 Redistribution and use in source and binary forms, with or without modification, are permitted
 provided that the following conditions are met:

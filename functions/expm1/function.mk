@@ -54,7 +54,7 @@ expm1-test: $(EXPM1_TESTS) $(EXPM1_B)/hwy_test
 expm1-hwy: $(EXPM1_B)/hwy_test
 	./$(EXPM1_B)/hwy_test
 expm1-xcheck: $(EXPM1_GEN)
-	./$(EXPM1)/tools/xcheck.sh $(PREFIX) $(PREFIX)
+	common/tools/xcheck.sh expm1 $(PREFIX) $(PREFIX)
 expm1-hashes: $(EXPM1_B)/hwy_test
 	$(RUN) ./$(EXPM1_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 ALL_TARGETS    += expm1-all

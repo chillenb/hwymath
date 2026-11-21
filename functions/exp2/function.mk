@@ -54,7 +54,7 @@ exp2-test: $(EXP2_TESTS) $(EXP2_B)/hwy_test
 exp2-hwy: $(EXP2_B)/hwy_test
 	./$(EXP2_B)/hwy_test
 exp2-xcheck: $(EXP2_GEN)
-	./$(EXP2)/tools/xcheck.sh $(PREFIX) $(PREFIX)
+	common/tools/xcheck.sh exp2 $(PREFIX) $(PREFIX)
 exp2-hashes: $(EXP2_B)/hwy_test
 	$(RUN) ./$(EXP2_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 ALL_TARGETS    += exp2-all

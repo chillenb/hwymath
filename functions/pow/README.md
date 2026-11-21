@@ -94,7 +94,7 @@ there rcp14's 2^−14 error decides the rounding. Two facts make it exactly emul
    it writes to `hwy/rcp14_switch.inc`.
 
 The same 32 switch points follow, without SDE, from the integer re-implementation of Intel's `RCP14D`
-written for tan (branch `port/trig`, `functions/tan/rcp14_ref.h`, verified there bit-exact against SDE). pow
+written for tan (`common/include/hwymath/rcp14_ref.h`, verified there bit-exact against SDE). pow
 does not need `vrcp14pd`'s own bits, only their rounding to 1/32, so it uses the switch points rather than
 the full piecewise-linear formula.
 

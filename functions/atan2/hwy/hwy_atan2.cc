@@ -3,7 +3,7 @@
 //   - targets with true FMA (HWY_NATIVE_FMA): the SVML algorithm, operation by operation (all other
 //     AVX-512 features have exact equivalents: rounding is round-to-nearest everywhere, masked
 //     operations = IfThenElse, the 32-bit high-word range check = two compares of |v|);
-//     vrcp14pd is emulated bit-exactly (approx14-inl.h, after Intel's reference RECIP14.c) on
+//     vrcp14pd is emulated bit-exactly (common/include/hwymath/hwy/avx512_emul-inl.h, after Intel's reference RECIP14.c) on
 //     targets without AVX-512 and is the instruction itself on AVX-512 targets, so the results are
 //     bit-identical to Intel's AVX-512 code (svml_atan28_ha) on all these targets;
 //   - targets without FMA (SSE2/SSSE3/SSE4): std::atan2.
@@ -25,7 +25,7 @@ extern "C" double svml_atan2_ha_zero_args(double y, double x);
 #define HWY_TARGET_INCLUDE "functions/atan2/hwy/hwy_atan2.cc"
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
 #include "hwy/highway.h"
-#include "functions/asin/hwy/approx14-inl.h"
+#include "hwymath/hwy/avx512_emul-inl.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace hwyatan2 {
@@ -51,16 +51,11 @@ static HWY_NOINLINE __attribute__((cold)) void FixSpecial(const double *y, const
     }
 }
 
-// vrcp14pd: the instruction on AVX-512 targets, elsewhere its bit-exact emulation (approx14-inl.h; its
+// vrcp14pd: the instruction on AVX-512 targets, elsewhere its bit-exact emulation (common/include/hwymath/hwy/avx512_emul-inl.h; its
 // domain covers every lane whose result is used)
 template <class D>
 HWY_INLINE hn::VFromD<D> Rcp14(D d, hn::VFromD<D> b) {
-#if HWY_TARGET <= HWY_AVX3
-    (void)d;
-    return hn::ApproximateReciprocal(b);
-#else
-    return hwyinvtrig::HWY_NAMESPACE::Rcp14(d, b);
-#endif
+    return hwymath::HWY_NAMESPACE::Rcp14(d, b);
 }
 
 template <class D>

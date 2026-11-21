@@ -2,22 +2,18 @@
 # version that is bit-identical to it on every target with FMA. Included by the top-level Makefile; paths
 # are relative to the repository root. Targets: asinh-all asinh-test asinh-hwy asinh-hashes asinh-xcheck, and on
 # x86-64 also asinh-insns asinh-avx512-test.
-# hwy/avx512_emul-inl.h (exact VRCP14PD/VRSQRT14PD/VGETEXPPD/VPERMT2PD emulations) and its test
-# (tests/test_approx14) are shared with functions/acosh and functions/atanh.
+# Uses the exact AVX-512 emulations of common/include/hwymath/hwy/avx512_emul-inl.h (tested by
+# common/tests/approx14/test_approx14).
 
 ASINH     := functions/asinh
 ASINH_B   := build/asinh
 ASINH_ASM := $(SVML_ASM)/svml_z0_asinh_d_ha.s
 ASINH_H   := $(ASINH)/asinh_d.h
-# shared AVX-512 emulation header and its generated data
-AVX512_EMUL := $(ASINH)/hwy/avx512_emul-inl.h $(ASINH)/hwy/approx14_tables.h
 
 # --- generated constants (committed; regenerated when their generators change) ---
 $(ASINH)/svml/svml_asinh_d_ha_constants.inc: $(ASINH)/tools/gen_svml_constants.py common/tools/extract_tables.py $(ASINH_ASM)
 	python3 -I $< $(ASINH_ASM) asinh > $@
-$(ASINH)/hwy/approx14_tables.h: $(ASINH)/tools/gen_approx14.py
-	python3 -I $< > $@
-ASINH_GEN := $(ASINH)/svml/svml_asinh_d_ha_constants.inc $(ASINH)/hwy/approx14_tables.h
+ASINH_GEN := $(ASINH)/svml/svml_asinh_d_ha_constants.inc
 
 # --- what gets built on this architecture ---
 ifeq ($(ARCH),x86_64)
@@ -29,7 +25,7 @@ ASINH_OBJS   := $(ASINH_B)/svml_asinh_d_ha.o
 ASINH_EXTRAS := $(ASINH_B)/extras_arm.o $(ASINH_B)/extras_arm_sve.o
 ASINH_TESTS  :=
 endif
-ASINH_PROGS := $(ASINH_TESTS) $(ASINH_B)/test_approx14 $(ASINH_B)/hwy_test
+ASINH_PROGS := $(ASINH_TESTS) $(ASINH_B)/hwy_test
 
 $(ASINH_B):
 	mkdir -p $@
@@ -56,12 +52,6 @@ ASINH_TEST_DEPS := $(ASINH)/tests/inputs.h common/include/hwymath/test_util.h $(
 $(ASINH_B)/test_%: $(ASINH)/tests/test_%.c $(ASINH_TEST_DEPS)
 	$(CC) $(CFLAGS) $(INC) $< $(ASINH_OBJS) -lm -o $@
 
-# --- emulation of the AVX-512 approximation instructions (shared with acosh, atanh) ---
-$(ASINH_B)/hwy_approx14.o: $(ASINH)/tests/hwy_approx14.cc $(AVX512_EMUL) | $(ASINH_B)
-	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
-$(ASINH_B)/test_approx14: $(ASINH)/tests/test_approx14.cc $(ASINH)/tests/approx14_ref.h $(ASINH_B)/hwy_approx14.o
-	$(CXX) $(CXXFLAGS) $(INC) $< $(ASINH_B)/hwy_approx14.o $(LIBPATH) -lhwy -lm -o $@
-
 # --- Highway version ---
 # GCC: schedule before register allocation (pressure-aware), so that the two vectors evaluated per loop
 # iteration are interleaved; without it one long dependency chain at a time runs (~1.5x slower on AVX2)
@@ -76,7 +66,6 @@ $(ASINH_B)/hwy_test: $(ASINH)/tests/hwy_test.cc $(ASINH)/tests/extras.h $(ASINH_
 asinh-all: $(ASINH_PROGS)
 asinh-test: $(ASINH_PROGS)
 	@set -e; for t in $(ASINH_TESTS); do $(RUN) ./$$t || [ $$? -eq 77 ]; done
-	$(RUN) ./$(ASINH_B)/test_approx14
 	$(RUN) ./$(ASINH_B)/hwy_test 2000000 --no-bench
 asinh-hwy: $(ASINH_B)/hwy_test
 	./$(ASINH_B)/hwy_test
@@ -84,7 +73,8 @@ asinh-hashes: $(ASINH_B)/hwy_test
 	$(RUN) ./$(ASINH_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 # AArch64 NEON/SVE/SVE2 under QEMU vs x86-64 AVX2, bit for bit (pixi run -e cross make asinh-xcheck)
 asinh-xcheck: $(ASINH_GEN)
-	functions/asinh/tools/xcheck.sh asinh $(PREFIX) $(PREFIX)
+	XC_SRC="functions/asinh/hwy/hwy_asinh.cc functions/asinh/tests/hwy_xcheck.cc" XC_CXXFLAGS=-DXFN=asinh \
+	  XC_VLS="16 32 48 64 256" XC_SVE2_VLS=32 common/tools/xcheck.sh asinh $(PREFIX) $(PREFIX)
 ALL_TARGETS    += asinh-all
 TEST_TARGETS   += asinh-test
 HWY_TARGETS    += asinh-hwy
@@ -94,11 +84,9 @@ XCHECK_TARGETS += asinh-xcheck
 ifeq ($(ARCH),x86_64)
 asinh-insns: $(ASINH_B)/svml_asinh_d_ha.o $(ASINH_B)/svml_asm.o
 	common/tools/compare_insns.sh $(ASINH_B)/svml_asinh_d_ha.o svml_asinh8_ha $(ASINH_B)/svml_asm.o __svml_asinh8_ha
-# AVX-512: bit-exactness of the translation vs Intel's assembly, of the emulated approximation instructions
-# vs the real ones, and of every Highway target (AVX-512 ones included) vs the translation
-asinh-avx512-test: $(ASINH_B)/test_asinh8 $(ASINH_B)/test_approx14 $(ASINH_B)/hwy_test
+# AVX-512: bit-exactness of the translation vs Intel's assembly and of every Highway target (AVX-512 ones included) vs the translation
+asinh-avx512-test: $(ASINH_B)/test_asinh8 $(ASINH_B)/hwy_test
 	$(RUN) ./$(ASINH_B)/test_asinh8 2000000 || [ $$? -eq 77 ]
-	$(RUN) ./$(ASINH_B)/test_approx14
 	$(RUN) ./$(ASINH_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 INSNS_TARGETS  += asinh-insns
 AVX512_TARGETS += asinh-avx512-test

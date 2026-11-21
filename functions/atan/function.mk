@@ -43,7 +43,7 @@ $(ATAN_B)/test_%: $(ATAN)/tests/test_%.c $(ATAN_TEST_DEPS)
 	$(CC) $(CFLAGS) $(INC) $< $(ATAN_OBJS) -lm -o $@
 
 # --- Highway version ---
-$(ATAN_B)/hwy_atan.o: $(ATAN)/hwy/hwy_atan.cc $(ATAN)/hwy/hwy_atan_constants.h $(ATAN_GEN) functions/asin/hwy/approx14-inl.h functions/asin/hwy/approx14_tables.h | $(ATAN_B)
+$(ATAN_B)/hwy_atan.o: $(ATAN)/hwy/hwy_atan.cc $(ATAN)/hwy/hwy_atan_constants.h $(ATAN_GEN) $(AVX512_EMUL) | $(ATAN_B)
 	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
 $(ATAN_B)/extras.o: $(ATAN)/tests/extras.c $(ATAN)/tests/extras.h | $(ATAN_B)
 	$(CC) $(CFLAGS) $(INC) $(SLEEF_DEF) $(INTEL_DEF) -c $< -o $@
@@ -54,9 +54,8 @@ $(ATAN_B)/hwy_test: $(ATAN)/tests/hwy_test.cc $(ATAN)/tests/extras.h common/incl
 
 # --- entry points ---
 atan-all: $(ATAN_PROGS)
-atan-test: $(ATAN_TESTS) build/asin/test_approx14 $(ATAN_B)/hwy_test
+atan-test: $(ATAN_TESTS) $(ATAN_B)/hwy_test
 	@set -e; for t in $(ATAN_TESTS); do $(RUN) ./$$t || [ $$? -eq 77 ]; done
-	$(RUN) ./build/asin/test_approx14
 	$(RUN) ./$(ATAN_B)/hwy_test 2000000 --no-bench
 atan-hwy: $(ATAN_B)/hwy_test
 	./$(ATAN_B)/hwy_test
@@ -68,15 +67,16 @@ HWY_TARGETS    += atan-hwy
 HASHES_TARGETS += atan-hashes
 # AArch64 NEON/SVE/SVE2 (QEMU, SVE at 128-2048 bits) vs x86-64, bit for bit: pixi run -e cross make atan-xcheck
 atan-xcheck: $(ATAN_GEN)
-	functions/asin/tools/xcheck_invtrig.sh atan $(PREFIX) $(PREFIX)
+	XC_SRC="functions/atan/hwy/hwy_atan.cc functions/asin/tools/xcheck_invtrig.cc" XC_CFLAGS=-Ifunctions/asin/svml \
+	  XC_CXXFLAGS="-Ifunctions/atan/tests -DXC_F=atan -DXC_ARGS=1" XC_VLS="16 32 64 128 256" \
+	  common/tools/xcheck.sh atan $(PREFIX) $(PREFIX) 200000
 XCHECK_TARGETS += atan-xcheck
 
 ifeq ($(ARCH),x86_64)
 atan-insns: $(ATAN_B)/svml_atan_d_ha.o $(ATAN_B)/svml_asm.o
 	common/tools/compare_insns.sh $(ATAN_B)/svml_atan_d_ha.o svml_atan8_ha $(ATAN_B)/svml_asm.o __svml_atan8_ha
 # AVX-512: bit-exactness of the translation vs Intel's assembly, Highway AVX-512 targets
-atan-avx512-test: $(ATAN_B)/test_atan8 $(ATAN_B)/hwy_test build/asin/test_approx14
-	$(RUN) ./build/asin/test_approx14
+atan-avx512-test: $(ATAN_B)/test_atan8 $(ATAN_B)/hwy_test
 	$(RUN) ./$(ATAN_B)/test_atan8 2000000 || [ $$? -eq 77 ]
 	$(RUN) ./$(ATAN_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 INSNS_TARGETS  += atan-insns

@@ -10,7 +10,6 @@ table lookups, test templates and inputs, `trig_common.mk`) live in [`functions/
 |---|---|
 | `svml/svml_tan_d_ha.c` | bit-identical C/AVX-512 translation of the assembly and its scalar callout |
 | `svml/svml_tan_d_ha_constants.inc` | its constants, generated from the assembly by `tools/gen_svml_constants.py` (which also checks that the reduction data equal sin's) |
-| `rcp14_ref.h` | scalar reference of `vrcp14pd` (Intel's published reference algorithm), C and C++ |
 | `hwy/hwy_tan.cc` | Highway version |
 | `hwy/rcp14_hwy-inl.h` | exact Highway emulation of `vrcp14pd` |
 | `tests/` | `test_rare.c`, `test_tan8.c`, `test_rcp14.c`, `rcp14_inputs.h`, `hwy_test.cc`, `extras.c` |
@@ -59,7 +58,7 @@ rcp14 = floor((256 a[i] + 512 b[i] - b[i] l) / 512) * 2^-17, an integer computat
 of the reference are exponent manipulations: biased exponent 2045 - e (2046 - e for powers of 2, which
 are exact), results with e = 2045/2046 shifted into the denormal range (by truncation), denormal inputs
 normalized first (|x| <= 2^-1024 gives +-inf), +-0 -> +-inf, +-inf -> +-0, NaN -> quiet NaN (DAZ = FTZ = 0,
-SVML's environment). `rcp14_ref.h` implements exactly this; `hwy/rcp14_hwy-inl.h` implements the same
+SVML's environment). `common/include/hwymath/rcp14_ref.h` implements exactly this; `hwy/rcp14_hwy-inl.h` implements the same
 integer formula in vectors: the pairs {a[i], b[i]} are packed in 28-bit words and looked up with permutes
 (`Lookup<64>` on 32-bit lanes: 2 `vpermt2d` + 1 select on AVX-512, 4 x (2 `vpermd` + blend) + 3 selects on
 AVX2; no gathers), b[i]*l with `MulEven`, denormal inputs by scaling with 2^52, the special cases by
@@ -120,7 +119,7 @@ no longer reproduce Intel's results.
 | test | compares with | result |
 |---|---|---|
 | `test_rare` | Intel's `__svml_dtan_ha_cout_rare_internal`: results, whether written, return codes, FP flags | 20,035,562 inputs, 0 mismatches |
-| `test_rcp14` | `vrcp14pd` vs `rcp14_ref.h` (Intel SDE here) | 2,474,584 inputs, 0 mismatches |
+| `test_rcp14` | `vrcp14pd` vs `common/include/hwymath/rcp14_ref.h` (Intel SDE here) | 2,474,584 inputs, 0 mismatches |
 | `test_tan8` | Intel's `__svml_tan8_ha`, bit for bit (Intel SDE) | 20,035,568 inputs (10,783,279 in the large path), 0 mismatches |
 | `hwy_test` | every Highway target: error < 1 ulp, special values, agreement between targets, bit-identity with the C translation (SDE: AVX3_SPR, AVX3_DL, AVX3, AVX2), `vrcp14pd` emulations vs the reference | all checks pass |
 | `make tan-insns` | instruction mix of the reduction and of the evaluation vs the assembly | identical |

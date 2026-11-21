@@ -8,9 +8,21 @@ translation to C, ports to other instruction sets, improved variants, and portab
 [Google Highway](https://github.com/google/highway) versions, each tested bit for bit against Intel's
 code and compared with Intel's libsvml, glibc, SLEEF and Highway's own math library.
 
-| function | status | highlights |
+| functions (double) | versions | highlights |
 |---|---|---|
-| [exp](functions/exp/README.md) (double) | C translation, AVX2 ports and variants, Highway | Highway version: max 0.505–0.511 ulp, bit-identical on AVX2/NEON/SVE/SVE2, as fast as Intel's AVX2 HA exp |
+| [exp](functions/exp/README.md) | C translation, AVX2 ports and variants, Highway hp | more accurate than Intel's (max 0.505–0.511 ulp vs 0.80), same speed on AVX2 |
+| [exp2](functions/exp2/README.md), [expm1](functions/expm1/README.md) | C translation, Highway | bit-identical to Intel's AVX-512 code on every FMA target |
+| [log](functions/log/README.md), [log2](functions/log2/README.md), [log10](functions/log10/README.md), [log1p](functions/log1p/README.md) | C translation, Highway | exact model of the rounded `vrcp14pd`, verified against Intel's reference algorithm |
+| [pow](functions/pow/README.md) | C translation, Highway | exact `{rz-sae}`/`{rd-sae}` arithmetic and `vreducepd`; checked per operation against the instructions |
+| [cbrt](functions/cbrt/README.md) | C translation, Highway | bit-identical; exact model of the rounded `vrcp14pd`, verified against the instruction |
+| [sin](functions/sin/README.md), [cos](functions/cos/README.md), [tan](functions/tan/README.md) | C translation, Highway | Payne–Hanek reduction for huge arguments; exact `vrcp14pd` for tan |
+| [asin](functions/asin/README.md), [acos](functions/acos/README.md), [atan](functions/atan/README.md), [atan2](functions/atan2/README.md) | C translation (callouts translated mechanically), Highway | exact `vrsqrt14pd`/`vrcp14pd` emulation after Intel's `recip14.c` |
+| [sinh](functions/sinh/README.md), [cosh](functions/cosh/README.md), [tanh](functions/tanh/README.md) | C translation, Highway | as fast as or faster than Intel's HA code on AVX-512; sinh and cosh also on AVX2 |
+| [asinh](functions/asinh/README.md), [acosh](functions/acosh/README.md), [atanh](functions/atanh/README.md) | C translation, Highway | bit-identical, as fast as Intel's on AVX-512 |
+
+Every C translation is bit-identical to Intel's assembly (vector code and scalar callout), and every Highway
+version of an SVML algorithm is bit-identical to Intel's AVX-512 code on every target with FMA (AVX-512,
+AVX2, NEON, SVE and SVE2 at any vector length), checked in CI on x86-64 and AArch64 hardware.
 
 All 67 high-accuracy sources and their status: [docs/svml-ha-sources.md](docs/svml-ha-sources.md).
 Accuracy and speed: [Performance.md](Performance.md).
@@ -42,11 +54,14 @@ functions/<name>/        one directory per SVML function (all precisions studied
   svml/                  bit-identical C translations of svml_z0_<name>_<d|s|h>_ha.s + constants
   avx2/, hwy/, ...       ports and variants
   tests/, tools/         tests, benchmarks, comparison implementations; generators
-common/
-  include/hwymath/       helpers shared by all tests (bit casts, deterministic RNG)
-  mk/config.mk           shared build settings (pixi prefix, flags, optional libraries, RUN prefix)
-  tools/                 extract_tables.py (data tables of any SVML .s file), compare_insns.sh,
+common/                  code used across functions (see common/README.md)
+  include/hwymath/       test helpers (bit casts, RNG, accuracy statistics, hashes, timing); hwy/: exact
+                         Highway emulations of AVX-512 instructions (vrcp14pd, vrsqrt14pd, ...)
+  mk/                    shared build settings (config.mk) and rules for the shared code (common.mk)
+  tests/                 tests of the shared code
+  tools/                 xcheck.sh (AArch64 under QEMU vs x86-64), extract_tables.py, compare_insns.sh,
                          check_hashes.py (CI cross-machine check), svml_catalog.py
+docs/porting.md          how a function is ported and verified (also the brief for parallel agents)
 docs/svml-ha-sources.md  catalog of all SVML high-accuracy sources (make catalog)
 third_party/SVML/        numpy/SVML submodule
 ```
@@ -68,11 +83,12 @@ third_party/SVML/        numpy/SVML submodule
 ## CI
 
 `.github/workflows/ci.yml` runs `make test`, `make hashes`, `make hwy`, `make compare`, `make bench` and
-`make insns` on GitHub's x86-64 and AArch64 runners. AVX-512 runs natively when the runner has it
+`make insns` on GitHub's x86-64 and AArch64 runners, for pull requests and pushes to `main`. AVX-512 runs natively when the runner has it
 (usually); otherwise `make avx512-test` runs under Intel SDE. A final job checks that the result hashes
 of every function agree across machines and targets.
 
 ## License
 
 BSD-3-Clause (see `LICENSE`). The algorithms, constants and scalar routines are derived from Intel's
-SVML (Copyright (C) 2023 Intel Corporation, BSD-3-Clause).
+SVML (Copyright (C) 2023 Intel Corporation, BSD-3-Clause); the `vrcp14pd`/`vrsqrt14pd` coefficient tables come
+from Intel's `recip14.c` (Copyright (c) 2015 Intel Corporation, BSD-3-Clause).

@@ -80,7 +80,7 @@ and run-time dispatch:
 
 The result depends on the `vrcp14pd` bits (r2 is not always the correctly rounded 1/b: the rounding
 error of r1 carries over, and R = RN(r2·a) then occasionally differs). The instruction is defined
-bit-exactly by Intel's reference RECIP14.c, which `functions/asin/hwy/approx14-inl.h` emulates without
+bit-exactly by Intel's reference RECIP14.c, which `common/include/hwymath/hwy/avx512_emul-inl.h` emulates without
 gathers (see asin's README; its domain, positive normal inputs with a normal reciprocal, covers
 b ∈ [2⁻¹⁰²⁰, 2⁹⁹⁵) on the main path; special lanes are recomputed in scalar code):
 
@@ -99,7 +99,7 @@ Targets without FMA (SSE2/SSSE3/SSE4) use `std::atan2`.
 | `test_atan28` | Intel's `__svml_atan28_ha`, all 8 lanes bit-exact | 2,003,640 input pairs, 0 mismatches (Intel SDE `-spr`) |
 | `hwy_test` | every Highway target: error bound (max ≤ 0.9 ulp, none > 1 ulp), special inputs (zero arguments vs glibc's exact results, other special lanes vs the callout), identical results on all FMA targets; with AVX-512: bit-identity of every FMA target with the C translation `svml_atan28_ha` | all checks pass (AVX3_SPR, AVX3_DL, AVX3, AVX2 under SDE; AVX2 natively) |
 | `make atan2-insns` | arithmetic instruction mix of the compiled vector path vs the assembly | identical |
-| `make atan2-xcheck` (`pixi run -e cross`) | Highway NEON, SVE and SVE2 under QEMU (SVE at 128, 256, 512, 1024 and 2048 bits, i.e. 2 to 32 lanes) vs x86-64 AVX2: inputs and results bit for bit (`functions/asin/tools/xcheck_invtrig.sh`) | identical on all 11 AArch64 configurations (200,000 random inputs plus the edge cases) |
+| `make atan2-xcheck` (`pixi run -e cross`) | Highway NEON, SVE and SVE2 under QEMU (SVE at 128, 256, 512, 1024 and 2048 bits, i.e. 2 to 32 lanes) vs x86-64 AVX2: inputs and results bit for bit (`common/tools/xcheck.sh` with `functions/asin/tools/xcheck_invtrig.cc`) | identical on all 11 AArch64 configurations (200,000 random inputs plus the edge cases) |
 
 Inputs (`tests/inputs.h`, pairs (y, x)): all 28 × 28 combinations of special values (±0, ±inf, NaNs with
 payloads, ±denormals, ±DBL_MIN, the exponent limits 2^-1020 and 2^993 with neighbours, ±DBL_MAX, ...);
@@ -108,4 +108,4 @@ sign combinations; magnitudes around 2^-1020 and 2^993 in ulp and high-word step
 values; random pairs (uniform in [-2, 2]², random ratios in [2^-8, 2^8], log-uniform magnitudes over the
 whole exponent range, arbitrary bit patterns). `make atan2-hashes` writes the result hashes (`svml` per
 Highway target, `svml-c svml` with AVX-512) for the cross-machine check; the exhaustive check of the
-`vrcp14pd` emulation (`build/asin/test_approx14`) also runs in `atan2-test` and `atan2-avx512-test`.
+`vrcp14pd` emulation is `make common-test` (part of `make test` and `make avx512-test`).

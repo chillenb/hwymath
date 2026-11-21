@@ -15,7 +15,7 @@ entirely different algorithm), and the per-function make targets stay independen
 | `svml/` | bit-identical C/AVX-512 translation of the assembly, with its constants (`svml_log_d_ha_constants.inc`, generated from the assembly by `tools/gen_svml_constants.py log`) |
 | `hwy/` | Google Highway version (`hwy_log.cc`); **shared**: `log_hwy-inl.h` (emulation of the AVX-512 operations), `rcp14_thresholds.h` (the rounded-`vrcp14pd` model), `log_tables.h` |
 | `tests/` | tests and test inputs; **shared**: `log_family_test.h` (Highway test/benchmark driver), `log_family_xcheck.h`, `extras*` (Intel SVML, SLEEF, libmvec) |
-| `tools/` | **shared**: `gen_svml_constants.py FUNCTION [--cxx]`, `rcp14_ref.h` (Intel's reference `vrcp14pd`, from the tan port), `verify_rcp14.c` (the `vrcp14pd` model against the reference and the CPU or Intel SDE), `xcheck.sh FUNCTION` (QEMU) |
+| `tools/` | **shared**: `gen_svml_constants.py FUNCTION [--cxx]`, `verify_rcp14.c` (the `vrcp14pd` model against the reference and the CPU or Intel SDE), `xcheck.sh FUNCTION` (QEMU) |
 | `log_d.h` | declarations of the C translation |
 | `function.mk` | build rules and the `log-*` make targets |
 
@@ -79,7 +79,7 @@ The AVX-512-only operations, emulated exactly (`hwy/log_hwy-inl.h`):
 `vrcp14pd` returns an approximation of 1/m with relative error < 2^-14; the SDM leaves its bits to the
 implementation, but Intel publishes reference C code (`recip14.c`, RCP14D: a 64-segment piecewise-linear
 formula on the top 16 fraction bits, truncated to 17 bits; not the correctly rounded value — about 25 % of
-results equal 1/m rounded to 16 bits, errors up to 5.6 units of 2^-17). `tools/rcp14_ref.h` is an integer
+results equal 1/m rounded to 16 bits, errors up to 5.6 units of 2^-17). `common/include/hwymath/rcp14_ref.h` is an integer
 rewrite of it (copied from the tan port, branch `port/trig`). SVML rounds the result at once to 5
 fractional bits (`vrndscalepd` imm 0x58: nearest, ties to even, scale 2^-5), so only the 16 places where the
 rounded value changes matter:

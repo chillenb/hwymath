@@ -4,14 +4,14 @@
 // (re-included by foreach_target.h). Needs HWY_NATIVE_FMA for the exactness of NegMulAdd below.
 //
 // VRCP14PD/VRSQRT14PD are "implementation-defined" approximations in the SDM, but Intel publishes a
-// bit-exact reference (RECIP14.c, see tools/gen_approx14.py), which Intel SDE follows and which
-// tests/test_approx14 checks against the hardware instructions. It evaluates a linear function on one of
+// bit-exact reference (RECIP14.c, see common/tools/gen_approx14.py; Intel's copyright notice is in LICENSE), which Intel SDE follows and which
+// common/tests/approx14/test_approx14 checks against the hardware instructions. It evaluates a linear function on one of
 // 64 segments of the mantissa, r = a - 256*b*(xt - y), with 17- or 18-bit integer coefficients a, b. Here
 // the coefficients are computed (one division, a square root for rsqrt14) plus a 4-bit correction read
 // from 64-bit words (approx14_tables.h), because a 64-entry lookup would need gathers.
 
 // include guard for the static data (once), then the per-target toggle
-#include "functions/asinh/hwy/approx14_tables.h"
+#include "hwymath/approx14_tables.h"
 
 #if defined(HWYMATH_AVX512_EMUL_INL_H_) == defined(HWY_TARGET_TOGGLE)
 #ifdef HWYMATH_AVX512_EMUL_INL_H_

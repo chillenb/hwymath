@@ -67,7 +67,8 @@ HASHES_TARGETS += sin-hashes
 # Highway sin on AArch64 NEON/SVE/SVE2 under QEMU vs x86-64 (run in the cross environment:
 # pixi run -e cross make sin-xcheck)
 sin-xcheck: $(SIN_GEN)
-	./functions/sin/tools/xcheck.sh sin $(PREFIX) $(PREFIX)
+	XC_TARGETS="neon:-march=armv8-a neon_aes:-march=armv8-a+crypto sve:-march=armv8.2-a+sve sve2:-march=armv9-a+sve2" \
+	  common/tools/xcheck.sh sin $(PREFIX) $(PREFIX)
 XCHECK_TARGETS += sin-xcheck
 
 ifeq ($(ARCH),x86_64)

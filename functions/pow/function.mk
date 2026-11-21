@@ -71,7 +71,8 @@ pow-hwy: $(POW_B)/hwy_test
 pow-hashes: $(POW_B)/hwy_test
 	$(RUN) ./$(POW_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 pow-xcheck: $(POW)/svml/svml_pow_d_ha_constants.inc
-	./$(POW)/tools/xcheck.sh $(PREFIX) $(PREFIX)
+	XC_FIXED="sve_fixed256:-march=armv8.2-a+sve -msve-vector-bits=256:32;sve2_fixed128:-march=armv9-a+sve2 -msve-vector-bits=128:16" \
+	  common/tools/xcheck.sh pow $(PREFIX) $(PREFIX) 1000000
 ALL_TARGETS    += pow-all
 TEST_TARGETS   += pow-test
 HWY_TARGETS    += pow-hwy

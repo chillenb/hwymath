@@ -76,7 +76,7 @@ log2-hashes: $(LOG2_B)/hwy_test
 	$(RUN) ./$(LOG2_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 # Highway on AArch64 NEON/SVE/SVE2 under QEMU vs x86-64 (pixi run -e cross make log2-xcheck)
 log2-xcheck: $(LOG2_GEN)
-	./functions/log/tools/xcheck.sh log2 $(PREFIX) $(PREFIX)
+	common/tools/xcheck.sh log2 $(PREFIX) $(PREFIX)
 ALL_TARGETS    += log2-all
 TEST_TARGETS   += log2-test
 HWY_TARGETS    += log2-hwy
