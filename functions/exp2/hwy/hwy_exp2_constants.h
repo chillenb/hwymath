@@ -18,6 +18,7 @@ constexpr double kThreshold = vThreshold;  // |x| >= this (or inf): scalar callo
 // 1.5*2^52 + 1023*16: Floor(16 x) + this holds floor(16 x) + 16*1023 in its low mantissa bits, so its
 // low 4 bits are the table index and bits 4..15 the biased exponent of 2^floor(x)
 constexpr double kShifter52 = 0x1.8p52 + 1023 * 16;
+constexpr double kShifter = vShifter;  // vaddpd {rd-sae} x + kShifter: floor(16 x) in the low bits (AVX-512 path)
 
 // Table repeated to fill vectors of up to 64 doubles, so that TableLookupLanes can use one vector.
 struct alignas(64) Padded16 {

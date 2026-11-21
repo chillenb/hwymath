@@ -27,6 +27,7 @@ extern "C" int svml_dexp2_ha_cout_rare(const double *px, double *pr);
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
 #include "hwy/highway.h"
 #include "hwy/contrib/math/math-inl.h"
+#include "hwymath/hwy/avx512_native-inl.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace hwyexp2 {
@@ -84,6 +85,12 @@ HWY_INLINE void Lookup16(D d, VU j, hn::VFromD<D> &th, hn::VFromD<D> &tl) {
 template <class D>
 HWY_INLINE hn::VFromD<D> Exp2Core(D d, hn::VFromD<D> x) {
     const hn::RebindToUnsigned<D> du;
+#if HWYMATH_NATIVE_AVX512
+    // Intel's instructions: vreducepd 0x41 {sae}, vaddpd {rd-sae}, vpermt2pd, vscalefpd
+    namespace nat = hwymath::HWY_NAMESPACE;
+    const auto r = nat::Reduce<0x41>(x);
+    const auto j = hn::And(hn::BitCast(du, nat::AddR<nat::kRD>(x, hn::Set(d, kShifter))), hn::Set(du, 15));
+#else
     // vreducepd(x, 0x41): r = x - floor(16 x)/16, rounded toward -inf. f <= x and the subtraction is
     // exact unless -1/16 < x < 0 (f = -1/16, |f| > |x|), so err = x - (r + f) is its exact error
     // (Fast2Sum); err < 0 means that RN rounded up: step one ulp down (r > 0 there).
@@ -98,6 +105,7 @@ HWY_INLINE hn::VFromD<D> Exp2Core(D d, hn::VFromD<D> x) {
     const auto tb = hn::BitCast(du, hn::Add(f16, hn::Set(d, kShifter52)));
     const auto j = hn::And(tb, hn::Set(du, 15));
     const auto scale = hn::BitCast(d, hn::ShiftLeft<52>(hn::ShiftRight<4>(tb)));
+#endif
 
     auto p = hn::MulAdd(hn::Set(d, kC6), r, hn::Set(d, kC5));
     p = hn::MulAdd(r, p, hn::Set(d, kC4));
@@ -108,7 +116,11 @@ HWY_INLINE hn::VFromD<D> Exp2Core(D d, hn::VFromD<D> x) {
     Lookup16(d, j, th, tl);
     p = hn::MulAdd(hn::Mul(th, r), p, tl);  // Tl + Th*r*P(r)
     const auto y = hn::Add(p, th);
+#if HWYMATH_NATIVE_AVX512
+    return hwymath::HWY_NAMESPACE::Scalef(y, x);
+#else
     return hn::Mul(y, scale);  // vscalefpd(y, x): exact, the result is normal
+#endif
 }
 
 void Exp2Array(const double *HWY_RESTRICT x, double *HWY_RESTRICT y, size_t len) {

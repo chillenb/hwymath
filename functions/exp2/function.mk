@@ -40,7 +40,7 @@ $(EXP2_B)/test_%: $(EXP2)/tests/test_%.c $(EXP2_TEST_DEPS)
 	$(CC) $(CFLAGS) $(INC) $< $(EXP2_OBJS) -lm -o $@
 
 # Highway version
-$(EXP2_B)/hwy_exp2.o: $(EXP2)/hwy/hwy_exp2.cc $(EXP2)/hwy/hwy_exp2_constants.h $(EXP2_GEN) | $(EXP2_B)
+$(EXP2_B)/hwy_exp2.o: $(EXP2)/hwy/hwy_exp2.cc common/include/hwymath/hwy/avx512_native-inl.h $(EXP2)/hwy/hwy_exp2_constants.h $(EXP2_GEN) | $(EXP2_B)
 	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
 $(EXP2_B)/hwy_test: $(EXP2)/tests/hwy_test.cc $(EXP2)/tests/extras.h common/include/hwymath/accuracy.h \
                     $(EXP2_TEST_DEPS) $(EXP2_B)/hwy_exp2.o $(EXP2_B)/extras.o
