@@ -60,11 +60,20 @@ registers and FMA forms.
 ## Highway version (`hwy/hwy_pow.cc`)
 
 Same algorithm, constants and operation order, with dynamic dispatch. On every target with true FMA
-(`HWY_NATIVE_FMA`: AVX2, AVX-512 family, NEON, SVE, SVE2), the AVX-512-only operations are emulated
-**exactly**, so the results are bit-identical to Intel's `__svml_pow8_ha`. Targets without FMA
-(SSE2/SSSE3/SSE4) use `std::pow`. Callout lanes call the C callout.
+(`HWY_NATIVE_FMA`: AVX2, AVX-512 family, NEON, SVE, SVE2), the results are bit-identical to Intel's
+`__svml_pow8_ha`. Targets without FMA (SSE2/SSSE3/SSE4) use `std::pow`. Callout lanes call the C callout.
 
-| AVX-512 feature | emulation |
+**AVX-512 targets** (AVX3, AVX3_DL, AVX3_ZEN4, AVX3_SPR, AVX10_2; `HWYMATH_NATIVE_AVX512` from
+`common/include/hwymath/hwy/avx512_native-inl.h`) use the assembly's own instructions: `vgetmantpd` 0x0a and
+`vgetexppd` {sae}, `vfpclasspd` 0xdf / 0x99, `vrcp14pd` + `vrndscalepd` 0x58, `vmulpd`/`vfmadd`/`vaddpd`
+{rz-sae}, `vaddpd` {rd-sae}, `vreducepd` 0x41, `vpermt2pd` + blend without masking the index (the
+instruction ignores the higher bits) and one `vcmppd` NLE_UQ for the range check. The last two are small
+local wrappers in `hwy_pow.cc` (`Permute16`/`Permute32`, `NotLe`). The compiled AVX3 loop then contains
+exactly the C translation's 67 vector arithmetic instructions (before: 137 vector and mask instructions),
+plus 2 `korb` and `kortestb` for the callout test and register copies for the destructive `vpermt2pd`/FMA
+forms. Every other target emulates the AVX-512-only operations **exactly**:
+
+| AVX-512 feature | emulation (all targets except AVX-512) |
 |---|---|
 | `vgetmantpd` [1/2,1) / `vgetexppd` | exponent and mantissa bits; denormals are scaled by 2^52 first; E converted with the 2^52 magic number |
 | `vrcp14pd` + `vrndscalepd` (1/32, RN) | exact, see below: round(32/q)/32 for the mantissa q truncated to 16 fraction bits, corrected near the 32 switch points with a 32-entry table, a branch taken only when some lane is near one |
@@ -128,8 +137,9 @@ occurs in callout lanes. The emulation does not reproduce it, but |S| > 1021.5 h
 ### Verification of the emulated operations
 
 With AVX-512 (or under SDE), `hwy_test` also runs each emulated operation of every target against the
-real instruction on dedicated operands. (AVX-512 targets use `vrcp14pd` itself for the rounded reciprocal, so
-for that operation the AVX2 row is the one that tests the emulation.) These cover every 16-bit mantissa prefix for the reciprocal;
+real instruction on dedicated operands. The AVX-512 targets use the instructions themselves for all six
+operations, so their rows compare the instruction with itself (a check of the wrappers' immediates and
+rounding modes only); the AVX2 row on the same machine is the one that tests the emulation. These cover every 16-bit mantissa prefix for the reciprocal;
 cancellation, small and large addends, exact products and overflowing products for mul/fma RZ; all
 relative scales for add RZ; and multiples of 1/16 ± ulps, tiny values and (−1/16, 0) for reduce. This
 matters because end-to-end comparisons are weak evidence here. Replacing an RZ by RN, or dropping the

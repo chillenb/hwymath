@@ -54,7 +54,7 @@ pow-rcp14-table: $(POW_B)/gen_rcp14_table
 	diff $(POW_B)/rcp14_switch.inc $(POW)/hwy/rcp14_switch.inc && echo "rcp14 switch table: identical"
 
 # --- Highway version ---
-$(POW_B)/hwy_pow.o: $(POW)/hwy/hwy_pow.cc $(POW)/hwy/hwy_pow_constants.h $(POW_H) | $(POW_B)
+$(POW_B)/hwy_pow.o: $(POW)/hwy/hwy_pow.cc common/include/hwymath/hwy/avx512_native-inl.h $(POW)/hwy/hwy_pow_constants.h $(POW_H) | $(POW_B)
 	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
 $(POW_B)/hwy_test: $(POW)/tests/hwy_test.cc $(POW)/tests/extras.h common/include/hwymath/accuracy.h $(POW_TEST_DEPS) \
                    $(POW_B)/hwy_pow.o $(POW_EXTRAS)
