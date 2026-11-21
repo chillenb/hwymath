@@ -198,18 +198,11 @@ HWY_INLINE V<D> Reduce16(D d, V<D> s, V<D> &sh) {
 }
 
 #if HWYMATH_NATIVE_AVX512
-// vpermt2pd lookup of entries tab[idx & 15] (the instruction ignores the higher index bits, so no masking)
-HWY_INLINE hn::Vec512<double> Permute16(const double *tab, hn::Vec512<uint64_t> idx) {
-    return hn::Vec512<double>{_mm512_permutex2var_pd(_mm512_loadu_pd(tab), idx.raw, _mm512_loadu_pd(tab + 8))};
-}
 // 32-entry lookup as in the assembly: vpermt2pd on index bits 0-3 of both halves, blend on bit 4
 HWY_INLINE hn::Vec512<double> Permute32(const double *tab, hn::Vec512<uint64_t> idx, hn::Mask512<double> hi) {
-    return hn::IfThenElse(hi, Permute16(tab + 16, idx), Permute16(tab, idx));
+    return hn::IfThenElse(hi, hwymath::HWY_NAMESPACE::Lookup16Raw(tab + 16, idx), hwymath::HWY_NAMESPACE::Lookup16Raw(tab, idx));
 }
 // vcmppd _CMP_NLE_UQ: !(a <= b), true also for NaN (one compare, where Highway needs Le and Not)
-HWY_INLINE hn::Mask512<double> NotLe(hn::Vec512<double> a, hn::Vec512<double> b) {
-    return hn::Mask512<double>{_mm512_cmp_pd_mask(a.raw, b.raw, _CMP_NLE_UQ)};
-}
 #endif
 
 template <class D>
@@ -300,8 +293,8 @@ HWY_INLINE V<D> PowCore(D d, V<D> x, V<D> y, hn::MFromD<D> &callout) {
     re = hn::BitCast(d, hn::And(hn::BitCast(du, re), hn::Set(du, kRMaskBits)));
     const auto shb = hn::BitCast(du, sh);
 #if HWYMATH_NATIVE_AVX512
-    const auto tle = Permute16(vExpTle, shb);
-    const auto the = Permute16(vExpThe, shb);
+    const auto tle = hwymath::HWY_NAMESPACE::Lookup16Raw(vExpTle, shb);
+    const auto the = hwymath::HWY_NAMESPACE::Lookup16Raw(vExpThe, shb);
 #else
     const auto jdx = hn::And(shb, hn::Set(du, 15));
     const auto tle = Lookup<16>(d, vExpTle, kExpTlePad.v, jdx);
@@ -309,7 +302,7 @@ HWY_INLINE V<D> PowCore(D d, V<D> x, V<D> y, hn::MFromD<D> &callout) {
 #endif
     const auto re2 = hn::Mul(re, re);
 #if HWYMATH_NATIVE_AVX512
-    const auto range = NotLe(hn::Abs(S), hn::Set(d, kBound));
+    const auto range = hwymath::HWY_NAMESPACE::Cmp<_CMP_NLE_UQ>(hn::Abs(S), hn::Set(d, kBound));
 #else
     const auto range = hn::Not(hn::Le(hn::Abs(S), hn::Set(d, kBound)));
 #endif

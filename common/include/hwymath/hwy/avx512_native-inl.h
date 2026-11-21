@@ -74,6 +74,21 @@ template <int kImm> HWY_INLINE V512d GetMant(V512d x) {
 }
 // vfpclasspd x, imm: the categories selected by imm
 template <int kImm> HWY_INLINE M512d FpClass(V512d x) { return M512d{_mm512_fpclass_pd_mask(x.raw, kImm)}; }
+// vcmppd a, b, predicate (_CMP_*): e.g. _CMP_NLT_UQ / _CMP_NLE_UQ in one instruction (Highway: compare + knot)
+template <int kPred> HWY_INLINE M512d Cmp(V512d a, V512d b) { return M512d{_mm512_cmp_pd_mask(a.raw, b.raw, kPred)}; }
+// vpermpd: table[idx & 7]; vpermt2pd: (lo, hi)[idx & 15]. The instructions read only the low index bits, so
+// no masking is needed (Highway's TableLookupLanes/TwoTablesLookupLanes require in-range indices). VI: any
+// Vec512 of 64-bit integers.
+template <class VI> HWY_INLINE V512d PermuteVar(V512d table, VI idx) {
+    return V512d{_mm512_permutexvar_pd(idx.raw, table.raw)};
+}
+template <class VI> HWY_INLINE V512d Permute2Var(V512d lo, VI idx, V512d hi) {
+    return V512d{_mm512_permutex2var_pd(lo.raw, idx.raw, hi.raw)};
+}
+// 16-entry table in memory: tab[idx & 15]
+template <class VI> HWY_INLINE V512d Lookup16Raw(const double *tab, VI idx) {
+    return V512d{_mm512_permutex2var_pd(_mm512_loadu_pd(tab), idx.raw, _mm512_loadu_pd(tab + 8))};
+}
 #endif  // HWYMATH_NATIVE_AVX512
 
 }  // namespace HWY_NAMESPACE

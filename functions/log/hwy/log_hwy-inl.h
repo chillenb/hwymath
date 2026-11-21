@@ -39,7 +39,7 @@ HWY_INLINE hn::VFromD<D> Lookup16(D d, const double *HWY_RESTRICT tab, const dou
     }
     if (N == 8) {  // two vectors: vpermt2pd on AVX-512
 #if HWYMATH_NATIVE_AVX512
-        return hn::VFromD<D>{_mm512_permutex2var_pd(hn::LoadU(d, tab).raw, idx.raw, hn::LoadU(d, tab + 8).raw)};
+        return hwymath::HWY_NAMESPACE::Lookup16Raw(tab, idx);
 #else
         return hn::TwoTablesLookupLanes(d, hn::LoadU(d, tab), hn::LoadU(d, tab + 8),
                                         hn::IndicesFromVec(d, hn::BitCast(di, idx)));

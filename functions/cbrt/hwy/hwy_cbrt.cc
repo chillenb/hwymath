@@ -38,12 +38,6 @@ namespace hn = hwy::HWY_NAMESPACE;
 
 // vpermpd / vpermt2pd with the raw index vector: the instructions use only its low 3 / 4 bits, so no index
 // masking is needed (Highway's TableLookupLanes requires in-range indices, which debug builds assert)
-HWY_INLINE hn::Vec512<double> PermVar(hn::Vec512<double> table, hn::Vec512<uint64_t> idx) {
-    return hn::Vec512<double>{_mm512_permutexvar_pd(idx.raw, table.raw)};
-}
-HWY_INLINE hn::Vec512<double> PermVar2(hn::Vec512<double> lo, hn::Vec512<uint64_t> idx, hn::Vec512<double> hi) {
-    return hn::Vec512<double>{_mm512_permutex2var_pd(lo.raw, idx.raw, hi.raw)};
-}
 
 // Intel's __svml_cbrt8_ha instruction for instruction (operation order of svml/svml_cbrt_d_ha.c). Denormals
 // are handled by vgetexppd/vgetmantpd, and 0, +-inf, NaN come out right by themselves: no branch, no select.
@@ -64,12 +58,12 @@ HWY_INLINE hn::VFromD<D> CbrtNative(D d, hn::VFromD<D> x) {
     const auto jS = hn::NegMulAdd(hn::Set(d, kThree), K, ES);                  // 1.5*2^52 + (E mod 3)
     auto p = hn::MulAdd(hn::Set(d, kC9), R, hn::Set(d, kC8));
     const auto j = hn::BitCast(du, jS);
-    const auto Sh = PermVar(hn::LoadU(d, vSh), j);
-    const auto Th = PermVar2(hn::LoadU(d, vTh), idx, hn::LoadU(d, vTh + 8));
+    const auto Sh = hwymath::HWY_NAMESPACE::PermuteVar(hn::LoadU(d, vSh), j);
+    const auto Th = hwymath::HWY_NAMESPACE::Permute2Var(hn::LoadU(d, vTh), idx, hn::LoadU(d, vTh + 8));
     auto tl_hi = hn::LoadU(d, vTl + 8);
     __asm__("" : "+v"(tl_hi.raw));  // all zero: GCC would rebuild it with a vxorpd in every iteration
-    const auto Tl = PermVar2(hn::LoadU(d, vTl), idx, tl_hi);
-    const auto Sl = PermVar(hn::LoadU(d, vSl), j);
+    const auto Tl = hwymath::HWY_NAMESPACE::Permute2Var(hn::LoadU(d, vTl), idx, tl_hi);
+    const auto Sl = hwymath::HWY_NAMESPACE::PermuteVar(hn::LoadU(d, vSl), j);
 
     const auto ShTh = hn::Mul(Sh, Th);
     const auto R2 = hn::Mul(R, R);

@@ -84,13 +84,7 @@ HWY_INLINE void Lookup16(D d, VU j, const double *ta, const double *pa, const do
 #if HWYMATH_NATIVE_AVX512
 // vpermt2pd with the raw index vector (the instruction uses only its low 4 bits; Highway's
 // TwoTablesLookupLanes requires in-range indices, which debug builds assert)
-HWY_INLINE hn::Vec512<double> PermVar2(hn::Vec512<double> lo, hn::Vec512<uint64_t> idx, hn::Vec512<double> hi) {
-    return hn::Vec512<double>{_mm512_permutex2var_pd(lo.raw, idx.raw, hi.raw)};
-}
 // lanes with !(x < thr) (x >= thr or NaN): one vcmppd NLT_UQ, like Intel's code
-HWY_INLINE hn::Mask512<double> NotLess(hn::Vec512<double> x, hn::Vec512<double> thr) {
-    return hn::Mask512<double>{_mm512_cmp_pd_mask(x.raw, thr.raw, _CMP_NLT_UQ)};
-}
 #endif
 
 template <class D>
@@ -107,8 +101,8 @@ HWY_INLINE hn::VFromD<D> Expm1Core(D d, hn::VFromD<D> x) {
     const auto n = hn::Sub(t, S);
 #if HWYMATH_NATIVE_AVX512
     const auto tb = hn::BitCast(du, t);  // table index in the low 4 bits
-    auto th = PermVar2(hn::LoadU(d, vTh), tb, hn::LoadU(d, vTh + 8));
-    const auto tlr = PermVar2(hn::LoadU(d, vTlr), tb, hn::LoadU(d, vTlr + 8));
+    auto th = hwymath::HWY_NAMESPACE::Permute2Var(hn::LoadU(d, vTh), tb, hn::LoadU(d, vTh + 8));
+    const auto tlr = hwymath::HWY_NAMESPACE::Permute2Var(hn::LoadU(d, vTlr), tb, hn::LoadU(d, vTlr + 8));
     const auto sgn = AndBits(d, x, kSignMaskBits);
     const auto r = hn::NegMulAdd(n, hn::Set(d, kLn2Hi), x);  // R = x - N*ln2_hi
     th = hwymath::HWY_NAMESPACE::Scalef(th, hn::Max(n, hn::Set(d, kMinN)));  // Th' = Th*2^floor(max(N, -128))
@@ -155,7 +149,7 @@ void Expm1Array(const double *HWY_RESTRICT x, double *HWY_RESTRICT y, size_t len
         const auto v = hn::LoadU(d, x + i);
         hn::StoreU(Expm1Core(d, v), d, y + i);
 #if HWYMATH_NATIVE_AVX512
-        const auto special = NotLess(v, thr);
+        const auto special = hwymath::HWY_NAMESPACE::Cmp<_CMP_NLT_UQ>(v, thr);
 #else
         const auto special = hn::Not(hn::Lt(v, thr));
 #endif
