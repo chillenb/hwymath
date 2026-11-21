@@ -7,7 +7,7 @@
 #include <math.h>
 #include <stdint.h>
 
-#include "functions/asinh/hwy/approx14_tables.h"
+#include "hwymath/approx14_tables.h"
 #include "hwymath/test_util.h"
 
 static inline double

@@ -48,7 +48,7 @@ AVX2 row hold for every such target (AVX-512, NEON, SVE).
 
 ## AArch64 (QEMU), binary128 reference
 
-`tools/xcheck.sh` (as in `make tanh-xcheck`, with `NR` = 300,000): 300,000 random inputs plus the special
+`common/tools/xcheck.sh` (as in `make tanh-xcheck`, with `NR` = 300,000): 300,000 random inputs plus the special
 and threshold inputs: NEON, SVE and SVE2 at 128 to 2048 bits are bit-identical to x86-64; against the
 binary128 `long double` reference the error is max 0.6340 ulp, 0.8163 % not correctly rounded (the same
 results measured with the x86-64 reference: 0.6343 ulp, 0.8098 %).

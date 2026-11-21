@@ -29,6 +29,7 @@ INSNS_TARGETS :=
 HASHES_TARGETS :=
 AVX512_TARGETS :=
 XCHECK_TARGETS :=
+include common/mk/common.mk
 include $(foreach f,$(FUNCTIONS),functions/$(f)/function.mk)
 
 all: $(ALL_TARGETS)

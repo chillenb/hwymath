@@ -16,7 +16,7 @@ extern "C" {
 // complete one on all inputs, the one for the main path on inputs with biased exponent in [1, 0x7fc])
 #include <cstdio>
 #include <vector>
-#include "functions/tan/rcp14_ref.h"
+#include "hwymath/rcp14_ref.h"
 #include "functions/tan/tests/rcp14_inputs.h"
 extern "C" void hwy_tan_rcp14_array(const double *x, double *y, size_t len);
 extern "C" void hwy_tan_rcp14_normal_array(const double *x, double *y, size_t len);

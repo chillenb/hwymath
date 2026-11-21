@@ -1,5 +1,5 @@
 // Exact emulation of AVX-512's vrcp14pd (approximate reciprocal, relative error < 2^-14) with Highway,
-// following Intel's reference algorithm (functions/tan/rcp14_ref.h; MXCSR.DAZ = FTZ = 0): for a
+// following Intel's reference algorithm (common/include/hwymath/rcp14_ref.h; MXCSR.DAZ = FTZ = 0): for a
 // significand 1.f (f != 0), with i = the top 6 fraction bits and l = the next 10,
 //   rcp14 = floor((256*a[i] + 512*b[i] - b[i]*l) / 512) * 2^-17   (a 17-bit significand in [1/2, 1)),
 // the exponent mirrored (biased 2045 - e), exact powers of 2, denormal inputs scaled by 2^52 first,
@@ -11,7 +11,7 @@
 #define HWYMATH_RCP14_TABLES_H
 #include <cstdint>
 
-#include "functions/tan/rcp14_ref.h"
+#include "hwymath/rcp14_ref.h"
 
 namespace hwymath_rcp14 {
 struct alignas(64) PackedCoeff {

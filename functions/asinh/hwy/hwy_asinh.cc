@@ -25,7 +25,7 @@ namespace hwyasinh {
 #define HWY_TARGET_INCLUDE "functions/asinh/hwy/hwy_asinh.cc"
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
 #include "hwy/highway.h"
-#include "functions/asinh/hwy/avx512_emul-inl.h"
+#include "hwymath/hwy/avx512_emul-inl.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace hwyasinh {

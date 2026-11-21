@@ -3,7 +3,7 @@
 Source studied: [`svml_z0_acosh_d_ha.s`](https://github.com/numpy/SVML/blob/9a43e744b15006d63e8d1b57626dfbe6b984f5ee/linux/avx512/svml_z0_acosh_d_ha.s)
 (AVX-512, high accuracy). Accuracy and speed: [Performance.md](Performance.md). The algorithm is asinh's
 ([../asinh/README.md](../asinh/README.md)) with x² − 1 in place of x² + 1, and the Highway version uses the
-AVX-512 emulations described there (`functions/asinh/hwy/avx512_emul-inl.h`).
+AVX-512 emulations described there (`common/include/hwymath/hwy/avx512_emul-inl.h`).
 
 | path | contents |
 |---|---|
@@ -51,7 +51,7 @@ that Intel's `{sae}` code suppresses.
 | `hwy_test` | every Highway target: max error < 1 ulp vs `acoshl`, special results (NaN below 1, +0 at 1, +inf), agreement between targets, bit-identity with the C translation when AVX-512 is available | all checks pass (SDE: AVX3, AVX3_DL, AVX3_SPR, AVX2 bit-identical to the translation) |
 | `make acosh-insns` | arithmetic instruction mix of the compiled vector path vs the assembly | identical |
 
-The emulated instructions themselves are tested by asinh's `test_approx14`.
+The emulated instructions themselves are tested by `make common-test` ([common/README.md](../../common/README.md#vrcp14pd-and-vrsqrt14pd)).
 
 Inputs (`tests/inputs.h`): ±0, ±1, ±inf, NaNs, denormals, ±DBL_MAX, 1 + k³ ulps for k < 1000; ±100 ulps
 around 1, √(1 + 2⁻¹¹), 2⁵¹¹, DBL_MAX, the overflow of x², 2²⁶ and 2²⁷ (x² − 1 rounds to x²); inputs for

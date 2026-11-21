@@ -21,10 +21,13 @@ For a function `f` with source `third_party/SVML/linux/avx512/svml_z0_f_d_ha.s` 
    (`HWY_NATIVE_FMA`), by emulating AVX-512-only operations exactly — rounding modes via an FMA plus an
    exact error-sign correction, `vscalefpd` via exponent bits, `vgetexp/vgetmant` via integer ops (care
    with denormals), `vpermt2pd` via `TableLookupLanes`/`TwoTablesLookupLanes` (tables must be
-   `constexpr`), `vfixupimm`/`vfpclass`/`vrange` via compares and selects. Where exactness is impossible
-   (notably `vrcp14pd`/`vrsqrt14pd`, whose bits are implementation-defined — exactness may still hold if
-   the result is rounded coarsely afterwards), keep the algorithm, document the deviation, and require the
-   documented accuracy (max error measured, < 1 ulp for HA). Targets without FMA fall back to the `std::`
+   `constexpr`), `vfixupimm`/`vfpclass`/`vrange` via compares and selects, `vrcp14pd`/`vrsqrt14pd` with the
+   shared exact emulation (`common/include/hwymath/hwy/avx512_emul-inl.h`, after Intel's reference
+   `recip14.c`; see `common/README.md`). On AVX-512 targets (`#if HWY_TARGET <= HWY_AVX3`) use the
+   instruction itself wherever Highway or an intrinsic on `.raw` provides it: it is exact by definition
+   and much cheaper than the emulation. Should exactness really be impossible somewhere, keep the
+   algorithm, document the deviation, and require the documented accuracy (max error measured, < 1 ulp
+   for HA). Targets without FMA fall back to the `std::`
    function. No gathers (very slow with the GDS microcode mitigation). Lanes needing the scalar callout use
    the C callout from step 1. Export `extern "C"` array functions; call `HWY_DYNAMIC_DISPATCH` inside the
    namespace with unqualified names. Two-argument functions (atan2, pow) take two input arrays.
@@ -50,6 +53,14 @@ For a function `f` with source `third_party/SVML/linux/avx512/svml_z0_f_d_ha.s` 
 
 Several closely related functions may share one directory only if they share most code; otherwise one
 directory per function.
+
+## Shared code
+
+Use what is in `common/` (overview: `common/README.md`) instead of copying it: `accuracy.h` (ulp errors,
+statistics, hashes, timing), `hwy/avx512_emul-inl.h` (`vrcp14pd`, `vrsqrt14pd`, `vgetexppd`, 16-entry
+`vpermt2pd`), `rcp14_ref.h` (scalar `vrcp14pd` reference), `tools/xcheck.sh` (QEMU cross-check; the
+function's `tests/hwy_xcheck.cc` writes the inputs and results). Code shared only within a family lives in
+the family's first directory (`functions/log/`, `functions/sin/`).
 
 ## Verification before calling a function done
 
@@ -77,7 +88,7 @@ Keep SDE runs to ~2M inputs. Run all of the above clean from `make clean`-state 
   change in your report.
 - Commit on your branch (author identity is configured); do not push.
 
-## Gotchas already hit (exp)
+## Gotchas already hit
 
 - Compile with `-ffp-contract=off` (set in `common/mk/config.mk`).
 - The SVML constant macros (`vC1`, ...) collide with identifiers inside Highway's headers: turn the needed
@@ -86,3 +97,20 @@ Keep SDE runs to ~2M inputs. Run all of the above clean from `make clean`-state 
 - `sleef.h` only declares AVX2/AVX-512 functions when compiled with those ISAs: declare them manually.
 - The x86-64 `long double` reference (64-bit mantissa) slightly undercounts not-correctly-rounded results.
 - The conda sysroot is glibc 2.28: scalar libm functions may bind to older, slower symbol versions.
+- Test inputs must not depend on the architecture: never call the random generator twice in one expression
+  (`f(rng(), rng())`: the evaluation order is unspecified and differs between GCC on x86-64 and AArch64),
+  and keep `-ffp-contract=off` for the input generator.
+- The default NaN of an invalid operation is negative on x86-64 and positive on AArch64; hash results with
+  `acc_hash_nan_canonical` when the function creates NaNs from non-NaN inputs (pow), and ignore NaN payloads
+  when comparing with Intel's code.
+- Highway's `NegMulSub(a, b, c)` on NEON is `Neg(MulAdd(a, b, c))`, which gives the opposite signed zero to
+  x86 and SVE when the result is zero (tan(−0) came out +0 on NEON). Use `NegMulAdd(a, b, Neg(c))` where the
+  sign of a zero result matters.
+- SVE vectors are sizeless: no arrays of vectors and no vectors in structs (use template recursion or
+  separate variables); compile the AArch64 multi-target build (`make <f>-xcheck`, or CI) before pushing.
+- `compare_insns.sh` compares instruction mixes, so the C translation must compile to the same instructions:
+  empty `asm` barriers stop GCC from rewriting sign manipulations (`x ^ |x|`) as `and`/`vpternlogq` or
+  replacing loads of all-zero table halves.
+- On AVX-512, the emulations of `vreducepd`, `vscalefpd` and rounding-mode arithmetic (`{rz-sae}`,
+  `{rd-sae}`) cost several instructions each, and AVX-512 code is usually limited by the two vector ports:
+  instruction count is time. Prefer the instructions on AVX-512 targets.

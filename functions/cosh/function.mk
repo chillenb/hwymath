@@ -53,7 +53,7 @@ cosh-hwy: $(COSH_B)/hwy_test
 cosh-hashes: $(COSH_B)/hwy_test
 	$(RUN) ./$(COSH_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 cosh-xcheck: $(COSH_GEN)
-	./$(COSH)/tools/xcheck.sh $(PREFIX) $(PREFIX)
+	common/tools/xcheck.sh cosh $(PREFIX) $(PREFIX)
 ALL_TARGETS    += cosh-all
 TEST_TARGETS   += cosh-test
 HWY_TARGETS    += cosh-hwy

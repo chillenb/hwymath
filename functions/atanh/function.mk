@@ -2,14 +2,14 @@
 # version that is bit-identical to it on every target with FMA. Included by the top-level Makefile; paths
 # are relative to the repository root. Targets: atanh-all atanh-test atanh-hwy atanh-hashes atanh-xcheck, and on
 # x86-64 also atanh-insns atanh-avx512-test.
-# Uses the exact VRCP14PD/VGETEXPPD/VPERMT2PD emulations of functions/asinh/hwy/avx512_emul-inl.h (tested
-# by asinh's test_approx14).
+# Uses the exact VRCP14PD/VGETEXPPD/VPERMT2PD emulations of common/include/hwymath/hwy/avx512_emul-inl.h (tested
+# by common/tests/approx14/test_approx14).
 
 ATANH     := functions/atanh
 ATANH_B   := build/atanh
 ATANH_ASM := $(SVML_ASM)/svml_z0_atanh_d_ha.s
 ATANH_H   := $(ATANH)/atanh_d.h
-ATANH_EMUL := functions/asinh/hwy/avx512_emul-inl.h functions/asinh/hwy/approx14_tables.h
+ATANH_EMUL := $(AVX512_EMUL)
 
 # --- generated constants (committed; regenerated when their generators change) ---
 $(ATANH)/svml/svml_atanh_d_ha_constants.inc: $(ATANH)/tools/gen_svml_constants.py common/tools/extract_tables.py $(ATANH_ASM)
@@ -74,7 +74,8 @@ atanh-hashes: $(ATANH_B)/hwy_test
 	$(RUN) ./$(ATANH_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 # AArch64 NEON/SVE/SVE2 under QEMU vs x86-64 AVX2, bit for bit (pixi run -e cross make atanh-xcheck)
 atanh-xcheck: $(ATANH_GEN)
-	functions/asinh/tools/xcheck.sh atanh $(PREFIX) $(PREFIX)
+	XC_SRC="functions/atanh/hwy/hwy_atanh.cc functions/asinh/tests/hwy_xcheck.cc" XC_CXXFLAGS=-DXFN=atanh \
+	  XC_VLS="16 32 48 64 256" XC_SVE2_VLS=32 common/tools/xcheck.sh atanh $(PREFIX) $(PREFIX)
 ALL_TARGETS    += atanh-all
 TEST_TARGETS   += atanh-test
 HWY_TARGETS    += atanh-hwy

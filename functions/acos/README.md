@@ -48,7 +48,7 @@ operations into `vpternlogq`, so that `make acos-insns` compares equal instructi
 `{rn-sae}` instructions, `Min` for `vminpd`, `IfThenElse` for masked operations and blends; the masked
 xor/or selection of the π constants becomes nested `IfThenElse`), NaN lanes set to −(x + x), lanes with
 |x| > 1 through the C callout, and `vrsqrt14pd` = the instruction on AVX-512 targets and its bit-exact
-emulation elsewhere (`functions/asin/hwy/approx14-inl.h`, after Intel's RECIP14.c; see asin):
+emulation elsewhere (`common/include/hwymath/hwy/avx512_emul-inl.h`, after Intel's RECIP14.c; see asin):
 
 - the results are bit-identical to Intel's AVX-512 code (`svml_acos8_ha`) on every FMA target (AVX3_SPR,
   AVX3_DL, AVX3, AVX2 under SDE; AArch64 NEON/SVE/SVE2 identical to x86-64 under QEMU);
@@ -65,10 +65,10 @@ Targets without FMA (SSE2/SSSE3/SSE4) use `std::acos`.
 | `test_acos8` | Intel's `__svml_acos8_ha`, all 8 lanes bit-exact | 2,004,656 inputs, 0 mismatches (Intel SDE `-spr`); skipped (77) without AVX-512 |
 | `hwy_test` | every Highway target: error bound (max ≤ 0.9 ulp, none > 1 ulp), special inputs (NaN, ±inf, \|x\| > 1, acos(1) = +0, acos(−1) = RN(π)), identical results on all FMA targets; with AVX-512: bit-identity of every FMA target with the C translation `svml_acos8_ha` | all checks pass (AVX3_SPR, AVX3_DL, AVX3, AVX2 under SDE; AVX2 natively) |
 | `make acos-insns` | arithmetic instruction mix of the compiled vector path vs the assembly | identical |
-| `make acos-xcheck` (`pixi run -e cross`) | Highway NEON, SVE and SVE2 under QEMU (SVE at 128, 256, 512, 1024 and 2048 bits, i.e. 2 to 32 lanes) vs x86-64 AVX2: inputs and results bit for bit (`functions/asin/tools/xcheck_invtrig.sh`) | identical on all 11 AArch64 configurations (200,000 random inputs plus the edge cases) |
+| `make acos-xcheck` (`pixi run -e cross`) | Highway NEON, SVE and SVE2 under QEMU (SVE at 128, 256, 512, 1024 and 2048 bits, i.e. 2 to 32 lanes) vs x86-64 AVX2: inputs and results bit for bit (`common/tools/xcheck.sh` with `functions/asin/tools/xcheck_invtrig.cc`) | identical on all 11 AArch64 configurations (200,000 random inputs plus the edge cases) |
 
 Inputs (`tests/inputs.h`, the same set as asin's): special values, ±50 ulps around every threshold of the
 vector code and the callout, arguments approaching ±1, random values (uniform in [−1, 1] and
 [−1.25, 1.25], log-uniform magnitudes, arbitrary bit patterns). `make acos-hashes` writes the result
 hashes (`svml` per target, `svml-c svml`) for the cross-machine check; the exhaustive check of the
-`vrsqrt14pd` emulation (`build/asin/test_approx14`) also runs in `acos-test` and `acos-avx512-test`.
+`vrsqrt14pd` emulation is `make common-test` (part of `make test` and `make avx512-test`).

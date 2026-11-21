@@ -1,11 +1,11 @@
-// Array versions of the Highway emulations in hwy/avx512_emul-inl.h, for test_approx14.
+// Array versions of the Highway emulations in hwymath/hwy/avx512_emul-inl.h, for test_approx14.
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "functions/asinh/tests/hwy_approx14.cc"
+#define HWY_TARGET_INCLUDE "common/tests/approx14/hwy_approx14.cc"
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
 #include "hwy/highway.h"
-#include "functions/asinh/hwy/avx512_emul-inl.h"
+#include "hwymath/hwy/avx512_emul-inl.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace hwyapprox14 {

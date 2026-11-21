@@ -1,7 +1,9 @@
 name: CI
 
 on:
+  # pushes to main only: branches with a pull request are tested by the pull_request event (no duplicate runs)
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 

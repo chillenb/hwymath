@@ -40,15 +40,15 @@ $(TAN_B)/svml_asm.o: $(TAN_ASM) | $(TAN_B)
 	$(CC) -c $(TAN_B)/svml_asm.s -o $@
 
 # --- tests of the C translation (x86-64) ---
-$(TAN_B)/test_%: $(TAN)/tests/test_%.c $(TRIG_TEST_DEPS) $(TAN)/rcp14_ref.h $(TAN)/tests/rcp14_inputs.h $(TAN_H) $(TAN_OBJS)
+$(TAN_B)/test_%: $(TAN)/tests/test_%.c $(TRIG_TEST_DEPS) common/include/hwymath/rcp14_ref.h $(TAN)/tests/rcp14_inputs.h $(TAN_H) $(TAN_OBJS)
 	$(CC) $(CFLAGS) $(INC) $< $(TAN_OBJS) -lm -o $@
 
 # --- Highway version ---
-$(TAN_B)/hwy_tan.o: $(TAN)/hwy/hwy_tan.cc $(TAN)/hwy/rcp14_hwy-inl.h $(TAN)/rcp14_ref.h $(TAN_GEN) $(TRIG_HWY_DEPS) | $(TAN_B)
+$(TAN_B)/hwy_tan.o: $(TAN)/hwy/hwy_tan.cc $(TAN)/hwy/rcp14_hwy-inl.h common/include/hwymath/rcp14_ref.h $(TAN_GEN) $(TRIG_HWY_DEPS) | $(TAN_B)
 	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
 $(TAN_B)/extras.o: $(TAN)/tests/extras.c $(SIN)/tests/extras_tmpl.h $(SIN)/tests/extras_tmpl_decl.h $(TAN_H) | $(TAN_B)
 	$(CC) $(CFLAGS) $(INC) $(SLEEF_DEF) $(INTEL_DEF) -c $< -o $@
-$(TAN_B)/hwy_test: $(TAN)/tests/hwy_test.cc $(TRIG_HWYTEST_DEPS) $(TAN)/rcp14_ref.h $(TAN)/tests/rcp14_inputs.h $(TAN_H) $(TAN_OBJS) $(TAN_B)/hwy_tan.o $(TAN_B)/extras.o
+$(TAN_B)/hwy_test: $(TAN)/tests/hwy_test.cc $(TRIG_HWYTEST_DEPS) common/include/hwymath/rcp14_ref.h $(TAN)/tests/rcp14_inputs.h $(TAN_H) $(TAN_OBJS) $(TAN_B)/hwy_tan.o $(TAN_B)/extras.o
 	$(CXX) $(CXXFLAGS) $(INC) $< $(TAN_B)/hwy_tan.o $(TAN_OBJS) $(TAN_B)/extras.o $(LIBPATH) -lhwy $(SLEEF_LIB) \
 	  $(INTEL_LIB) $(if $(filter x86_64,$(ARCH)),-lmvec) -lm -o $@
 
@@ -68,7 +68,8 @@ HASHES_TARGETS += tan-hashes
 # Highway tan on AArch64 NEON/SVE/SVE2 under QEMU vs x86-64 (run in the cross environment:
 # pixi run -e cross make tan-xcheck)
 tan-xcheck: $(TAN_GEN)
-	./functions/sin/tools/xcheck.sh tan $(PREFIX) $(PREFIX)
+	XC_TARGETS="neon:-march=armv8-a neon_aes:-march=armv8-a+crypto sve:-march=armv8.2-a+sve sve2:-march=armv9-a+sve2" \
+	  common/tools/xcheck.sh tan $(PREFIX) $(PREFIX)
 XCHECK_TARGETS += tan-xcheck
 
 ifeq ($(ARCH),x86_64)

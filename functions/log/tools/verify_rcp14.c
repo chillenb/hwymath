@@ -28,7 +28,7 @@
 #include <string.h>
 
 #include "functions/log/hwy/rcp14_thresholds.h"
-#include "functions/log/tools/rcp14_ref.h"
+#include "hwymath/rcp14_ref.h"
 
 using namespace hwymath_log;
 

@@ -66,7 +66,8 @@ HASHES_TARGETS += cos-hashes
 # Highway cos on AArch64 NEON/SVE/SVE2 under QEMU vs x86-64 (run in the cross environment:
 # pixi run -e cross make cos-xcheck)
 cos-xcheck: $(COS_GEN)
-	./functions/sin/tools/xcheck.sh cos $(PREFIX) $(PREFIX)
+	XC_TARGETS="neon:-march=armv8-a neon_aes:-march=armv8-a+crypto sve:-march=armv8.2-a+sve sve2:-march=armv9-a+sve2" \
+	  common/tools/xcheck.sh cos $(PREFIX) $(PREFIX)
 XCHECK_TARGETS += cos-xcheck
 
 ifeq ($(ARCH),x86_64)

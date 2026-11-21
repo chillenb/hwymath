@@ -59,8 +59,9 @@ $(LOG_B)/extras_arm_sve.o: $(LOG)/tests/extras_arm_sve.c | $(LOG_B)
 LOG_TEST_DEPS := $(LOG)/tests/inputs.h common/include/hwymath/test_util.h $(LOG_OBJS)
 $(LOG_B)/test_%: $(LOG)/tests/test_%.c $(LOG_TEST_DEPS)
 	$(CC) $(CFLAGS) $(INC) $< $(LOG_OBJS) -lm -o $@
-# the rounded vrcp14pd model (rcp14_thresholds.h) vs Intel's reference algorithm (rcp14_ref.h) and the CPU
-$(LOG_B)/verify_rcp14: $(LOG)/tools/verify_rcp14.c $(LOG)/tools/rcp14_ref.h $(LOG)/hwy/rcp14_thresholds.h | $(LOG_B)
+# the rounded vrcp14pd model (rcp14_thresholds.h) vs Intel's reference algorithm
+# (common/include/hwymath/rcp14_ref.h) and the CPU
+$(LOG_B)/verify_rcp14: $(LOG)/tools/verify_rcp14.c common/include/hwymath/rcp14_ref.h $(LOG)/hwy/rcp14_thresholds.h | $(LOG_B)
 	$(CXX) $(CXXFLAGS) $(INC) -x c++ $< -lm -o $@
 
 # --- Highway version ---
@@ -81,7 +82,7 @@ log-hashes: $(LOG_B)/hwy_test
 	$(RUN) ./$(LOG_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 # Highway on AArch64 NEON/SVE/SVE2 under QEMU vs x86-64 (pixi run -e cross make log-xcheck)
 log-xcheck: $(LOG_GEN)
-	./functions/log/tools/xcheck.sh log $(PREFIX) $(PREFIX)
+	common/tools/xcheck.sh log $(PREFIX) $(PREFIX)
 ALL_TARGETS    += log-all
 TEST_TARGETS   += log-test
 HWY_TARGETS    += log-hwy

@@ -13,6 +13,7 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 /* error of y in ulps of the correctly rounded result round(ref) */
@@ -63,6 +64,24 @@ acc_hash(const double *v, size_t n)
     uint64_t h = 0xcbf29ce484222325ULL;
     const unsigned char *p = (const unsigned char *)v;
     for (size_t i = 0; i < n * sizeof(double); i++) h = (h ^ p[i]) * 0x100000001b3ULL;
+    return h;
+}
+
+/* The same with every NaN counted as one canonical NaN, for cross-architecture comparisons of functions that
+ * produce NaNs by invalid operations: the default NaN is negative on x86-64 and positive on AArch64. */
+static inline uint64_t
+acc_hash_nan_canonical(const double *v, size_t n)
+{
+    uint64_t h = 0xcbf29ce484222325ULL;
+    for (size_t k = 0; k < n; k++) {
+        double d = v[k];
+        if (d != d) {
+            const uint64_t qnan = 0x7ff8000000000000ULL;
+            memcpy(&d, &qnan, sizeof d);
+        }
+        const unsigned char *p = (const unsigned char *)&d;
+        for (size_t i = 0; i < sizeof(double); i++) h = (h ^ p[i]) * 0x100000001b3ULL;
+    }
     return h;
 }
 

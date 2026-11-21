@@ -1,7 +1,7 @@
 // Portable (Google Highway) version of Intel SVML's AVX-512 acosh (svml/svml_acosh_d_ha.c), with run-time
 // dispatch to the best target. Per target:
 //   - targets with true FMA (HWY_NATIVE_FMA): the SVML algorithm, operation for operation, with the
-//     AVX-512-only instructions emulated exactly (functions/asinh/hwy/avx512_emul-inl.h: VRCP14PD,
+//     AVX-512-only instructions emulated exactly (common/include/hwymath/hwy/avx512_emul-inl.h: VRCP14PD,
 //     VRSQRT14PD, VGETEXPPD, 16-entry VPERMT2PD lookups; masked operations as selects), so results are
 //     bit-identical to Intel's __svml_acosh8_ha on every such target;
 //   - targets without FMA (SSE2/SSSE3/SSE4): std::acosh.
@@ -25,7 +25,7 @@ namespace hwyacosh {
 #define HWY_TARGET_INCLUDE "functions/acosh/hwy/hwy_acosh.cc"
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
 #include "hwy/highway.h"
-#include "functions/asinh/hwy/avx512_emul-inl.h"
+#include "hwymath/hwy/avx512_emul-inl.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace hwyacosh {

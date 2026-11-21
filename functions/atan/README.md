@@ -55,7 +55,7 @@ routine, portable C). As in asin, empty `asm` barriers keep GCC from rewriting t
 
 The result depends on the `vrcp14pd` bits (Rcp₂ keeps the rounding error of RN(Rcp(1 + eps)), so R and
 the final rounding change with Rcp). The instruction is defined bit-exactly by Intel's reference
-RECIP14.c, which `functions/asin/hwy/approx14-inl.h` emulates without gathers (see asin's README; its
+RECIP14.c, which `common/include/hwymath/hwy/avx512_emul-inl.h` emulates without gathers (see asin's README; its
 domain, positive normal inputs with a normal reciprocal, covers Y ∈ [1, 2¹²⁸]):
 
 - the results are bit-identical to Intel's AVX-512 code (`svml_atan8_ha`) on every FMA target (AVX3_SPR,
@@ -75,12 +75,12 @@ AVX-512 algorithm's 0.57 ulp.
 | `test_atan8` | Intel's `__svml_atan8_ha`, all 8 lanes bit-exact | 2,004,208 inputs, 0 mismatches (Intel SDE `-spr`); skipped (77) without AVX-512 |
 | `hwy_test` | every Highway target: error bound (max ≤ 0.6 ulp, none > 1 ulp), special inputs (NaN, ±inf, ±0, denormals), identical results on all FMA targets; with AVX-512: bit-identity of every FMA target with the C translation `svml_atan8_ha` | all checks pass (AVX3_SPR, AVX3_DL, AVX3, AVX2 under SDE; AVX2 natively) |
 | `make atan-insns` | arithmetic instruction mix of the compiled vector path vs the assembly | identical |
-| `make atan-xcheck` (`pixi run -e cross`) | Highway NEON, SVE and SVE2 under QEMU (SVE at 128, 256, 512, 1024 and 2048 bits, i.e. 2 to 32 lanes) vs x86-64 AVX2: inputs and results bit for bit (`functions/asin/tools/xcheck_invtrig.sh`) | identical on all 11 AArch64 configurations (200,000 random inputs plus the edge cases) |
+| `make atan-xcheck` (`pixi run -e cross`) | Highway NEON, SVE and SVE2 under QEMU (SVE at 128, 256, 512, 1024 and 2048 bits, i.e. 2 to 32 lanes) vs x86-64 AVX2: inputs and results bit for bit (`common/tools/xcheck.sh` with `functions/asin/tools/xcheck_invtrig.cc`) | identical on all 11 AArch64 configurations (200,000 random inputs plus the edge cases) |
 
 Inputs (`tests/inputs.h`): special values (±0, ±inf, NaNs with payloads, denormals, ±DBL_MAX, 2¹²⁸, ...),
 ±50 ulps around every threshold of the vector code (7.875, 3.875…4.125, 2¹²⁸) and of the scalar routine
 (0.125, 2⁵⁴, 2⁻⁵³, 2⁻¹⁰²², ...), ±3 ulps around every table point j/4 and interval end (2j+1)/8, random
 values (uniform in [−8, 8], log-uniform magnitudes in [2⁻⁶⁰, 2⁷⁰], arbitrary bit patterns).
 `make atan-hashes` writes the result hashes (`svml` per target, `svml-c svml`) for the cross-machine
-check; the exhaustive check of the `vrcp14pd` emulation (`build/asin/test_approx14`) also runs in `atan-test`
+check; the exhaustive check of the `vrcp14pd` emulation (`make common-test`) runs in `make test`
 and `atan-avx512-test`.

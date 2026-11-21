@@ -46,11 +46,7 @@ static std::vector<long double> g_ref;  // powl(x, y), computed once
 
 // hash with every NaN replaced by one canonical NaN: the default NaN of an invalid operation (0/0 for
 // pow(x < 0, non-integer y)) is negative on x86-64 and positive on AArch64; all other bits must agree
-static uint64_t result_hash(const std::vector<double> &z) {
-    std::vector<double> c(z);
-    for (double &v : c) if (std::isnan(v)) v = bitsd(0x7ff8000000000000ULL);
-    return acc_hash(c.data(), c.size());
-}
+static uint64_t result_hash(const std::vector<double> &z) { return acc_hash_nan_canonical(z.data(), z.size()); }
 
 static bool is_snan(double v) { return std::isnan(v) && !((dbits(v) >> 51) & 1); }
 

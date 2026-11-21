@@ -2,14 +2,14 @@
 # version that is bit-identical to it on every target with FMA. Included by the top-level Makefile; paths
 # are relative to the repository root. Targets: acosh-all acosh-test acosh-hwy acosh-hashes acosh-xcheck, and on
 # x86-64 also acosh-insns acosh-avx512-test.
-# Uses the exact VRCP14PD/VRSQRT14PD/VGETEXPPD/VPERMT2PD emulations of functions/asinh/hwy/avx512_emul-inl.h
-# (tested by asinh's test_approx14) and asinh's constant generator (same data layout).
+# Uses the exact VRCP14PD/VRSQRT14PD/VGETEXPPD/VPERMT2PD emulations of common/include/hwymath/hwy/avx512_emul-inl.h
+# (tested by common/tests/approx14/test_approx14) and asinh's constant generator (same data layout).
 
 ACOSH     := functions/acosh
 ACOSH_B   := build/acosh
 ACOSH_ASM := $(SVML_ASM)/svml_z0_acosh_d_ha.s
 ACOSH_H   := $(ACOSH)/acosh_d.h
-ACOSH_EMUL := functions/asinh/hwy/avx512_emul-inl.h functions/asinh/hwy/approx14_tables.h
+ACOSH_EMUL := $(AVX512_EMUL)
 
 # --- generated constants (committed; regenerated when their generators change) ---
 $(ACOSH)/svml/svml_acosh_d_ha_constants.inc: $(ACOSH)/tools/gen_svml_constants.py functions/asinh/tools/gen_svml_constants.py common/tools/extract_tables.py $(ACOSH_ASM)
@@ -74,7 +74,8 @@ acosh-hashes: $(ACOSH_B)/hwy_test
 	$(RUN) ./$(ACOSH_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 # AArch64 NEON/SVE/SVE2 under QEMU vs x86-64 AVX2, bit for bit (pixi run -e cross make acosh-xcheck)
 acosh-xcheck: $(ACOSH_GEN)
-	functions/asinh/tools/xcheck.sh acosh $(PREFIX) $(PREFIX)
+	XC_SRC="functions/acosh/hwy/hwy_acosh.cc functions/asinh/tests/hwy_xcheck.cc" XC_CXXFLAGS=-DXFN=acosh \
+	  XC_VLS="16 32 48 64 256" XC_SVE2_VLS=32 common/tools/xcheck.sh acosh $(PREFIX) $(PREFIX)
 ALL_TARGETS    += acosh-all
 TEST_TARGETS   += acosh-test
 HWY_TARGETS    += acosh-hwy

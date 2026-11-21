@@ -76,7 +76,7 @@ log1p-hashes: $(LOG1P_B)/hwy_test
 	$(RUN) ./$(LOG1P_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 # Highway on AArch64 NEON/SVE/SVE2 under QEMU vs x86-64 (pixi run -e cross make log1p-xcheck)
 log1p-xcheck: $(LOG1P_GEN)
-	./functions/log/tools/xcheck.sh log1p $(PREFIX) $(PREFIX)
+	common/tools/xcheck.sh log1p $(PREFIX) $(PREFIX)
 ALL_TARGETS    += log1p-all
 TEST_TARGETS   += log1p-test
 HWY_TARGETS    += log1p-hwy

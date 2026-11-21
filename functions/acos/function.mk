@@ -43,7 +43,7 @@ $(ACOS_B)/test_%: $(ACOS)/tests/test_%.c $(ACOS_TEST_DEPS)
 	$(CC) $(CFLAGS) $(INC) $< $(ACOS_OBJS) -lm -o $@
 
 # --- Highway version ---
-$(ACOS_B)/hwy_acos.o: $(ACOS)/hwy/hwy_acos.cc $(ACOS)/hwy/hwy_acos_constants.h $(ACOS_GEN) functions/asin/hwy/approx14-inl.h functions/asin/hwy/approx14_tables.h | $(ACOS_B)
+$(ACOS_B)/hwy_acos.o: $(ACOS)/hwy/hwy_acos.cc $(ACOS)/hwy/hwy_acos_constants.h $(ACOS_GEN) $(AVX512_EMUL) | $(ACOS_B)
 	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
 $(ACOS_B)/extras.o: $(ACOS)/tests/extras.c $(ACOS)/tests/extras.h | $(ACOS_B)
 	$(CC) $(CFLAGS) $(INC) $(SLEEF_DEF) $(INTEL_DEF) -c $< -o $@
@@ -54,9 +54,8 @@ $(ACOS_B)/hwy_test: $(ACOS)/tests/hwy_test.cc $(ACOS)/tests/extras.h common/incl
 
 # --- entry points ---
 acos-all: $(ACOS_PROGS)
-acos-test: $(ACOS_TESTS) build/asin/test_approx14 $(ACOS_B)/hwy_test
+acos-test: $(ACOS_TESTS) $(ACOS_B)/hwy_test
 	@set -e; for t in $(ACOS_TESTS); do $(RUN) ./$$t || [ $$? -eq 77 ]; done
-	$(RUN) ./build/asin/test_approx14
 	$(RUN) ./$(ACOS_B)/hwy_test 2000000 --no-bench
 acos-hwy: $(ACOS_B)/hwy_test
 	./$(ACOS_B)/hwy_test
@@ -68,15 +67,16 @@ HWY_TARGETS    += acos-hwy
 HASHES_TARGETS += acos-hashes
 # AArch64 NEON/SVE/SVE2 (QEMU, SVE at 128-2048 bits) vs x86-64, bit for bit: pixi run -e cross make acos-xcheck
 acos-xcheck: $(ACOS_GEN)
-	functions/asin/tools/xcheck_invtrig.sh acos $(PREFIX) $(PREFIX)
+	XC_SRC="functions/acos/hwy/hwy_acos.cc functions/asin/tools/xcheck_invtrig.cc" XC_CFLAGS=-Ifunctions/asin/svml \
+	  XC_CXXFLAGS="-Ifunctions/acos/tests -DXC_F=acos -DXC_ARGS=1" XC_VLS="16 32 64 128 256" \
+	  common/tools/xcheck.sh acos $(PREFIX) $(PREFIX) 200000
 XCHECK_TARGETS += acos-xcheck
 
 ifeq ($(ARCH),x86_64)
 acos-insns: $(ACOS_B)/svml_acos_d_ha.o $(ACOS_B)/svml_asm.o
 	common/tools/compare_insns.sh $(ACOS_B)/svml_acos_d_ha.o svml_acos8_ha $(ACOS_B)/svml_asm.o __svml_acos8_ha
 # AVX-512: bit-exactness of the translation vs Intel's assembly, Highway AVX-512 targets
-acos-avx512-test: $(ACOS_B)/test_acos8 $(ACOS_B)/hwy_test build/asin/test_approx14
-	$(RUN) ./build/asin/test_approx14
+acos-avx512-test: $(ACOS_B)/test_acos8 $(ACOS_B)/hwy_test
 	$(RUN) ./$(ACOS_B)/test_acos8 2000000 || [ $$? -eq 77 ]
 	$(RUN) ./$(ACOS_B)/hwy_test $(HASH_INPUTS) --no-bench --hash $(HASH_FILE)
 INSNS_TARGETS  += acos-insns
